@@ -21,7 +21,7 @@ namespace Gatebox.Variant
 
 		public static JObject CreateWithCapacity( int capacity) => new JObject(capacity);
 
-		internal static JObject CreateInternal(JObjectBody body) => new JObject(body);
+		internal static JObject CreateInternal(JObjectBody? body) => new JObject(body);
 
 		//==============================================================================
 		// instance members
@@ -63,7 +63,7 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// (private) JObjectBody からの生成。
 		/// </summary>
-		private JObject(JObjectBody body)
+		private JObject(JObjectBody? body)
 		{
 			m_Body = body;
 		}
@@ -323,23 +323,26 @@ namespace Gatebox.Variant
 		/// </summary>
 		public readonly bool TryConvertToArray(out JArray p)
 		{
-			// TODO :　キーのすべてが int として解釈可能であれば、そのインデックスに各要素を詰めた配列を p に返す。
-			p = default;
+			try
+			{
+				var ret = new JArray();
+				foreach (string k in this.Keys)
+				{
+					int index = int.Parse(k);
+					ret.Set(index, Get(k));
+				}
+				p = ret;
+				return true;
+			}
+			catch (FormatException) { }
+			catch (ArgumentException) { }
+
+			p = new JArray();
 			return false;
 		}
 
-		/// <summary>
-		/// 文字列化
-		/// <para>
-		/// なんとなく内部状態を示す文字列を返します。
-		/// JSON表現を返すわけではないので注意してください。
-		/// </para>
-		/// </summary>
-		public override readonly string ToString()
-		{
-			return new JVariant(this).ToString();
-		}
-
+		
+		
 
 
 		
@@ -347,6 +350,8 @@ namespace Gatebox.Variant
 		{
 			return new JVariant(this);
 		}
+
+		
 
 
 
@@ -377,6 +382,42 @@ namespace Gatebox.Variant
 			return new JValue();
 		}
 
+
+		/// <summary>
+		/// 文字列化
+		/// <para>
+		/// なんとなく内部状態を示す文字列を返します。
+		/// JSON表現を返すわけではないので注意してください。
+		/// </para>
+		/// </summary>
+		public override readonly string ToString(){
+			
+			if (m_Body == null || m_Body.Count == 0)
+			{
+				return "{}";
+			}
+			
+
+			using var sb = LocalTextBuilder.Acquire();
+			sb.Append("{ ");
+
+			for( int i=0; i<m_Body.Count; ++i)
+			{
+				if (i != 0)
+				{
+					sb.Append(", ");
+				}
+				var key = m_Body.GetKeyAt(i);
+				var value = m_Body.GetValueAt(i);
+
+				sb.Append(key);
+				sb.Append(":");
+				sb.Append(value?.GetSimpleString() ?? "null");
+			}
+
+			sb.Append(" }");
+			return sb.ToString();
+		}
 		
 	}
 }

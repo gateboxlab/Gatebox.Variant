@@ -10,6 +10,8 @@ namespace Gatebox.Variant
 {
 	public struct JVariant
 	{
+		public const int DefaultMaxDepth = 64;
+
 		public static implicit operator JVariant(JValue v) => new (v);
 
 

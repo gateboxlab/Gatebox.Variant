@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Gatebox.Variant
 {
-	internal interface IVariantConvertible
+	public interface IVariantConvertible
 	{
 		public JVariant AsVariant();
 	}
