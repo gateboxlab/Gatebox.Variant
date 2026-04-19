@@ -3,11 +3,8 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using Gatebox.Variant.Extensions;
-
-
 
 #nullable enable
 
@@ -83,6 +80,7 @@ namespace Gatebox.Variant.Internal
 			{
 				public KeyEnumerator(JObjectBody target) : base(target) { }
 				public string Current => m_Target.GetKeyAt(m_Cursor);
+				object IEnumerator.Current =>  m_Target.GetKeyAt(m_Cursor);
 			}
 
 			private readonly JObjectBody m_Target;
@@ -116,6 +114,7 @@ namespace Gatebox.Variant.Internal
 			{
 				public ValueEnumerator(JObjectBody target) : base(target) { }
 				public JValue Current => m_Target.GetValueAt(m_Cursor);
+				object IEnumerator.Current =>  m_Target.GetValueAt(m_Cursor);
 			}
 
 			private readonly JObjectBody m_Target;
@@ -588,8 +587,6 @@ namespace Gatebox.Variant.Internal
 			}
 		}
 		
-
-	
 
 		// 指定されたキーのインデックスを返す。
 		// 見つかった場合はそのインデックスを返し、

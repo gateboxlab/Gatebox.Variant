@@ -86,14 +86,7 @@ namespace Gatebox.Variant
 		/// </summary>
 		public readonly ICollection<string> Keys
 		{
-			get
-			{
-				if (m_Body == null)
-				{
-					return Array.Empty<string>();
-				}
-				return m_Body.GetKeyCollection();
-			}
+			get => m_Body?.Keys ?? (ICollection<string>)Enumerable.Empty<string>();
 		}
 
 		/// <summary>
@@ -101,14 +94,7 @@ namespace Gatebox.Variant
 		/// </summary>
 		public readonly ICollection<JValue> Values
 		{
-			get
-			{
-				if (m_Body == null)
-				{
-					return Array.Empty<JValue>();
-				}
-				return m_Body.GetValueCollection();
-			}
+			get => m_Body?.Values ?? (ICollection<JValue>)Array.Empty<JValue>();
 		}
 
 		/// <summary>
