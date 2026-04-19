@@ -16,7 +16,7 @@ using System.ComponentModel;
 
 namespace System.Runtime.CompilerServices
 {
-#if UNITY_2021_2_OR_NEWER
+#if UNITY_2021_2_OR_NEWER || NETSTANDARD2_1
 	// コンパイラは C#9.0 に対応しているが、ライブラリが対応していない。
 	// init-only プロパティを使うために、IsExternalInit を定義する。
 	[EditorBrowsable(EditorBrowsableState.Never)]
@@ -31,7 +31,7 @@ namespace System.Runtime.CompilerServices
 
 namespace System.Diagnostics.CodeAnalysis
 {
-#if UNITY_2021_2_OR_NEWER
+#if UNITY_2021_2_OR_NEWER || NETSTANDARD2_1
 
 
 	/// <summary>

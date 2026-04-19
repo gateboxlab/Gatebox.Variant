@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Gatebox.Variant.Pure/Gatebox.Variant.Pure.csproj" />
+  <Project Path="Gatebox.Variant.Pure.Tests/Gatebox.Variant.Pure.Tests.csproj" />
+</Solution>

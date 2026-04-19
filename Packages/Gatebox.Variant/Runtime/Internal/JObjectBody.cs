@@ -473,6 +473,14 @@ namespace Gatebox.Variant.Internal
 		/// </summary>
 		public JValue? GetOrDefault( string key )
 		{
+			return GetOrDefault(key.View());
+		}
+
+		/// <summary>
+		/// 指定されたキーの値があればそれを、なければ　null を返す。
+		/// </summary>
+		public JValue? GetOrDefault(StringView key)
+		{
 			int i = Search(key);
 			if (i < 0)
 			{

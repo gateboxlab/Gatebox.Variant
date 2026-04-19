@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Gatebox.Variant.Internal;
-using UnityEngine.tvOS;
 
 
 #nullable enable
@@ -86,7 +85,7 @@ namespace Gatebox.Variant
 		/// </summary>
 		public readonly ICollection<string> Keys
 		{
-			get => m_Body?.Keys ?? (ICollection<string>)Enumerable.Empty<string>();
+			get => m_Body?.Keys ?? Array.Empty<string>();
 		}
 
 		/// <summary>
@@ -241,7 +240,10 @@ namespace Gatebox.Variant
 		/// </summary>
 		readonly void ICollection<KeyValuePair<string, JValue>>.CopyTo(KeyValuePair<string, JValue>[] array, int arrayIndex)
 		{
-			m_Body?.CopyTo(array, arrayIndex);
+			if (m_Body != null)
+			{
+				((ICollection<KeyValuePair<string, JValue>>)m_Body).CopyTo(array, arrayIndex);
+			}
 		}
 
 		
