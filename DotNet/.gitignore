@@ -6,4 +6,5 @@ TestResults/
 *.coveragexml
 *.nupkg
 *.snupkg
+!*.csproj
 !./Gatebox.Variant.DotNet.sln
