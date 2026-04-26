@@ -45,7 +45,20 @@ namespace Gatebox.Variant
 		public readonly bool IsComposite() => IsArray() || IsObject();
 		public readonly bool IsPrimitive() => !IsComposite() && !IsNull();
 		public readonly JObject AsObject() => m_Value?.AsObject() ?? new JObject();
-		
 
+		internal string Stringify(JsonFormatPolicy? policy)
+		{
+			throw new NotImplementedException();
+		}
+
+		internal U8View ToU8Json(JsonFormatPolicy? policy)
+		{
+			throw new NotImplementedException();
+		}
+
+		internal JVariant Pick(string path)
+		{
+			throw new NotImplementedException();
+		}
 	}
 }

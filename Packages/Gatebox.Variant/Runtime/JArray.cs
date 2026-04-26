@@ -155,8 +155,6 @@ namespace Gatebox.Variant
 
 		internal readonly void ConvertToJSON(ref StringifyContext context)
 		{
-
-
 			try
 			{
 				context.Push(m_Body!);
@@ -172,7 +170,7 @@ namespace Gatebox.Variant
 						appender.AppendItemSeparator();
 					}
 					appender.AppendNewLine();
-					this.Get(i).Value.ConvertToJSON(ref context);
+					this.Get(i).Value.ConvertToJson(ref context);
 				}
 
 				appender.AppendNewLine(-1);

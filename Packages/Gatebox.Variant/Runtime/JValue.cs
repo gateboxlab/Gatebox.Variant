@@ -2,6 +2,12 @@
 using System.Collections.Generic;
 using Gatebox.Variant.Extensions;
 using Gatebox.Variant.Internal;
+using Unity.VisualScripting.YamlDotNet.Core.Tokens;
+using static Codice.Client.Common.EventTracking.TrackFeatureUseEvent.Features.DesktopGUI.Filters;
+
+
+
+
 
 #nullable enable
 
@@ -1023,7 +1029,7 @@ namespace Gatebox.Variant
 		{
 			policy ??= JsonFormatPolicy.OneLiner;
 
-			return ToJSON(policy);
+			return ToJson(policy);
 		}
 
 		/// <summary>
@@ -1044,7 +1050,7 @@ namespace Gatebox.Variant
 		/// </para>
 		/// </summary>
 		/// <param name="policy">フォーマット指定、省略した場合はそれなりに改行するポリシー</param>
-		public string ToJSON(JsonFormatPolicy? policy = null)
+		public string ToJson(JsonFormatPolicy? policy = null)
 		{
 			policy ??= JsonFormatPolicy.Mixed;
 
@@ -1059,7 +1065,7 @@ namespace Gatebox.Variant
 			var context = StringifyContext.ForString(policy);
 			try
 			{
-				ConvertToJSON(ref context);
+				ConvertToJson(ref context);
 				return context.StringResult();
 			}
 			finally
@@ -1071,7 +1077,7 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// UTF-8 バイナリによる JSON 化。
 		/// </summary>
-		public U8View ToU8JSON(JsonFormatPolicy? policy = null)
+		public U8View ToU8Json(JsonFormatPolicy? policy = null)
 		{
 			policy ??= JsonFormatPolicy.Mixed;
 
@@ -1085,17 +1091,90 @@ namespace Gatebox.Variant
 			var context = StringifyContext.ForU8(policy);
 			try
 			{
-				ConvertToJSON(ref context);
+				ConvertToJson(ref context);
 				return context.U8Result();
 			}
 			finally
 			{
 				context.Dispose();
 			}
-			
 		}
 
-		internal void ConvertToJSON(ref StringifyContext context)
+
+		public JValue Duplicate()
+		{
+			if (m_Type == VariantType.Object)
+			{
+				return new JVariant(JObject.CreateInternal(GetObjectBody()).Duplicate());
+			}
+
+			if (m_Type == VariantType.Array)
+			{
+				return new JVariant(JArray.CreateInternal(GetArrayBody()).Duplicate());
+			}
+
+			return new JVariant(this);
+		}
+
+		public bool EquivalentTo(JValue other, int maxDepth, int depth)
+		{
+			if (depth > maxDepth)
+			{
+				throw new VariantException("Too deep comparison. Circular reference suspected.");
+			}
+
+			var vt = m_Type;
+
+			if ( other == null )
+			{
+				return (vt == VariantType.Null);
+			}
+						
+			if (vt != other.m_Type)
+			{
+				return false;
+			}
+			if (vt == VariantType.Null)
+			{
+				return true;
+			}
+			if (vt == VariantType.Boolean)
+			{
+				return ((m_IntValue != 0) == (other.m_IntValue != 0));
+			}
+			if (vt == VariantType.Integer)
+			{
+				return (m_IntValue == other.m_IntValue);
+			}
+			if (vt == VariantType.Float)
+			{
+				return (m_FloatValue == other.m_FloatValue);
+			}
+			if (vt == VariantType.String)
+			{
+				return (m_RefValue as string)!.Equals(other.m_RefValue);
+			}
+
+			if (vt == VariantType.Array)
+			{
+				var a1 = JArray.CreateInternal(GetArrayBody());
+				var a2 = JArray.CreateInternal(other.GetArrayBody());
+				return a1.EquivalentTo(a2, maxDepth, depth);
+			}
+			if (vt == VariantType.Object)
+			{
+				var o1 = JObject.CreateInternal(GetObjectBody());
+				var o2 = JObject.CreateInternal(other.GetObjectBody());
+
+				return o1.EquivalentTo(o2, maxDepth, depth);
+			}
+
+			return false;
+		}
+
+
+
+		internal void ConvertToJson(ref StringifyContext context)
 		{
 			var buffer = context.GetBuffer();
 			switch (m_Type)
@@ -1287,5 +1366,7 @@ namespace Gatebox.Variant
 			}
 			return null;
 		}
+
+		
 	}
 }

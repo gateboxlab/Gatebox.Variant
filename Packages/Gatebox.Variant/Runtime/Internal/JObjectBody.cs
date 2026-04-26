@@ -456,6 +456,10 @@ namespace Gatebox.Variant.Internal
 #pragma warning disable CS8767
 		public bool TryGetValue(string key, [MaybeNullWhen(false)] out JValue value)
 		{
+			return TryGetValue(key.View(), out value);
+		}
+		public bool TryGetValue(StringView key, [MaybeNullWhen(false)] out JValue value)
+		{
 			int i = Search(key);
 			if (i < 0)
 			{

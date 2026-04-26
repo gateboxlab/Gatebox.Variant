@@ -19,8 +19,14 @@ namespace Gatebox.Variant
 		// static members
 		//==============================================================================
 
+		/// <summary>
+		/// キャパシティを指定しての生成。
+		/// </summary>
 		public static JObject CreateWithCapacity(int capacity) => new JObject(capacity);
 
+		/// <summary>
+		/// (internal) 内部データからの生成。
+		/// </summary>
 		internal static JObject CreateInternal(JObjectBody? body) => new JObject(body);
 
 		//==============================================================================
@@ -298,6 +304,10 @@ namespace Gatebox.Variant
 		{
 			return m_Body?.Remove(key) ?? false;
 		}
+
+		/// <summary>
+		/// 要素削除
+		/// </summary>
 		public bool Remove(StringView key)
 		{
 			return m_Body?.Remove(key) ?? false;
@@ -365,45 +375,72 @@ namespace Gatebox.Variant
 
 
 
-
-
-
-		public JVariant AsVariant()
+		/// <summary>
+		/// JVariant に変換する。
+		/// </summary>
+		public readonly JVariant AsVariant()
 		{
 			return new JVariant(this);
 		}
 
-
-
-
-
-
-		[MemberNotNull(nameof(m_Body))]
-		private JObjectBody EnsureBody()
+		public string Stringify(JsonFormatPolicy? policy = null)
 		{
-			m_Body ??= new JObjectBody();
-			return m_Body;
+			return AsVariant().Stringify(policy);
+		}
+		public string ToJson(JsonFormatPolicy? policy = null)
+		{
+			return AsVariant().Stringify(policy);
+		}
+		public U8View ToU8Json(JsonFormatPolicy? policy = null)
+		{
+			return AsVariant().ToU8Json(policy);
 		}
 
-		// 内部データを返す。
-		internal JObjectBody GetBody()
+
+		/// <summary>
+		/// ドット表記による子要素の参照
+		/// <para>
+		/// JVariant.Pick() を参照してください。</para>
+		/// </summary>
+		public readonly JVariant Pick(string path)
 		{
-			return EnsureBody();
+			return AsVariant().Pick(path);
 		}
 
-		// add の実装
-		private void AddInternal(string key, JVariant value)
+		/// <summary>
+		/// ディープコピー
+		/// <para>
+		/// この JObject がもつ内容と同じ内容を持つ JObject を新たに作成して返す。</para>
+		/// <para>
+		/// 各項目はそれぞれ再帰的に内容のコピーを作成します。</para>
+		/// <para>
+		/// JObject は項目に自分自身を持ちえますが、そのような場合の配慮はされていません。（永久ループになります）
+		/// ループするようなオブジェクトの構造はまずないとは思いますが、念の為配慮してください。
+		/// </para>
+		/// </summary>
+		public readonly JObject Duplicate()
 		{
-			// TODO : 実装
-		}
+			if( IsEmpty() )
+			{
+				return new JObject();
+			}
+			var ret = JObject.CreateWithCapacity(this.Count);
 
-		// Set の実装のため。確実に key の要素が存在するようにしてそれを返す。Setはそこに Assign すると無駄がない。
-		private JValue EnsureItem(StringView key)
-		{
-			// TODO : 実装
-			return new JValue();
+			for( int i = 0; i < this.Count; ++i )
+			{
+				var key = m_Body!.GetKeyAt(i);
+				var value = m_Body.GetValueAt(i);
+				if( value != null )
+				{
+					ret.Add(key, value.Duplicate());
+				}
+				else
+				{
+					ret.Add(key, new JValue());
+				}
+			}
+			return ret;
 		}
-
 
 		/// <summary>
 		/// 文字列化
@@ -414,12 +451,10 @@ namespace Gatebox.Variant
 		/// </summary>
 		public override readonly string ToString()
 		{
-
 			if (m_Body == null || m_Body.Count == 0)
 			{
 				return "{}";
 			}
-
 
 			using var sb = LocalTextBuilder.Acquire();
 			sb.Append("{ ");
@@ -441,6 +476,102 @@ namespace Gatebox.Variant
 			sb.Append(" }");
 			return sb.ToString();
 		}
+
+
+		public readonly bool EquivalentTo(JObject other, int maxDepth = JVariant.DefaultMaxDepth, int depth = 0)
+		{
+			// 個数が違うときは等価でない。
+			if (Count != other.Count)
+			{
+				return false;
+			}
+
+			// 対象が 0 の時は自分が 0 である必要がある
+			if( other.Count == 0)
+			{
+				return (Count == 0);
+			}
+
+			// 自分が 0 のときは対象も 0 である必要があるが、
+			// その前の条件で対象が 0 でないときは等価でないので、ここに来るときは自分も対象も 0 でないことが保証される。
+			if ( Count == 0)
+			{
+				return false;
+			}
+
+			// この時点で両方とも個数 0 ではない、つまり m_Body は存在することが保証される。
+			var o1 = m_Body!;
+			var o2 = other.m_Body!;
+
+			// 同じインスタンスを参照しているときは等価。
+			if (ReferenceEquals(o1, o2))
+			{
+				return true;
+			}
+			
+			for( int i =0 ; i< Count ; i++)
+			{
+				if( o1.GetKeyAt(i) != o2.GetKeyAt(i) )
+				{
+					return false;
+				}
+				var v1 = o1.GetValueAt(i);
+				var v2 = o2.GetValueAt(i);
+				if( !v1.EquivalentTo(v2, maxDepth, depth + 1) )
+				{
+					return false;
+				}
+			}
+
+			return true;
+		}
+
+
+		[MemberNotNull(nameof(m_Body))]
+		private JObjectBody EnsureBody()
+		{
+			m_Body ??= new JObjectBody();
+			return m_Body;
+		}
+
+
+
+		// 内部データを返す。
+		internal JObjectBody GetBody()
+		{
+			return EnsureBody();
+		}
+
+		// add の実装
+		// ArgumentException を投げることがある。
+		private void AddInternal(string key, JVariant value)
+		{
+			m_Body ??= new JObjectBody();
+			m_Body.Add(key, new JValue(value));
+		}
+
+		// Set の実装のため。確実に key の要素が存在するようにしてそれを返す。Setはそこに Assign すると無駄がない。
+		private JValue EnsureItem(StringView key)
+		{
+			m_Body ??= new JObjectBody();
+
+			int index = m_Body.Find(key);
+			if (index >= 0)
+			{
+				var v = m_Body.GetValueAt(index);
+				if (v != null)
+				{
+					return v;
+				}
+			}
+
+			var ret = new JVariant();
+			m_Body[key] = ret;
+			return ret;
+		}
+
+
+	
 
 		internal readonly void ConvertToJSON(ref StringifyContext context)
 		{
@@ -468,10 +599,9 @@ namespace Gatebox.Variant
 						appender.Append('"');
 						appender.Append(TextUtil.EscapeJsonString(key, context.Policy.EscapeMultiBytes));
 						appender.Append("\": ");
-						value.ConvertToJSON(ref context);
+						value.ConvertToJson(ref context);
 					}
 				}
-
 
 				appender.AppendNewLine(-1);
 				appender.Append('}');
