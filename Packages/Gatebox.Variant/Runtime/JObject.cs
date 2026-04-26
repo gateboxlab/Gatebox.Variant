@@ -19,7 +19,7 @@ namespace Gatebox.Variant
 		// static members
 		//==============================================================================
 
-		public static JObject CreateWithCapacity( int capacity) => new JObject(capacity);
+		public static JObject CreateWithCapacity(int capacity) => new JObject(capacity);
 
 		internal static JObject CreateInternal(JObjectBody? body) => new JObject(body);
 
@@ -68,14 +68,14 @@ namespace Gatebox.Variant
 			m_Body = body;
 		}
 
-		
+
 
 		/// <summary>
 		/// (private) キャパシティを指定しての生成。
 		/// </summary>
-		private JObject( int capacity)
+		private JObject(int capacity)
 		{
-			m_Body = new JObjectBody(capacity:capacity);
+			m_Body = new JObjectBody(capacity: capacity);
 		}
 
 
@@ -142,6 +142,28 @@ namespace Gatebox.Variant
 		/// </summary>
 		public readonly bool IsEmpty() => (Count == 0);
 
+
+		/// <summary>
+		/// 内容がシンプルなとき true.
+		/// <para>
+		/// JSON変換の際の改行の判定に利用されます。
+		/// プリミティブな要素を一つだけ持つ場合、シンプルとみなされます。</para>
+		/// </summary>
+		public readonly bool IsSimple()
+		{
+			if (this.Count == 0)
+			{
+				return true;
+			}
+			if (this.Count == 1)
+			{
+				var v = m_Body!.GetValueAt(0);
+				return (!v.IsComposite());
+			}
+			return false;
+		}
+
+
 		/// <summary>
 		/// 追加。
 		/// <para>
@@ -172,7 +194,7 @@ namespace Gatebox.Variant
 			m_Body.Add(item.Key, item.Value);
 		}
 
-	
+
 		/// <summary>
 		/// 要素の取得。
 		/// <para>
@@ -246,7 +268,7 @@ namespace Gatebox.Variant
 			}
 		}
 
-		
+
 
 		/// <summary>
 		/// IEnumerator を返す。
@@ -305,7 +327,7 @@ namespace Gatebox.Variant
 		}
 
 
-		
+
 
 
 		/// <summary>
@@ -341,17 +363,17 @@ namespace Gatebox.Variant
 			return false;
 		}
 
-		
-		
 
 
-		
+
+
+
 		public JVariant AsVariant()
 		{
 			return new JVariant(this);
 		}
 
-		
+
 
 
 
@@ -390,18 +412,19 @@ namespace Gatebox.Variant
 		/// JSON表現を返すわけではないので注意してください。
 		/// </para>
 		/// </summary>
-		public override readonly string ToString(){
-			
+		public override readonly string ToString()
+		{
+
 			if (m_Body == null || m_Body.Count == 0)
 			{
 				return "{}";
 			}
-			
+
 
 			using var sb = LocalTextBuilder.Acquire();
 			sb.Append("{ ");
 
-			for( int i=0; i<m_Body.Count; ++i)
+			for (int i = 0; i < m_Body.Count; ++i)
 			{
 				if (i != 0)
 				{
@@ -418,6 +441,47 @@ namespace Gatebox.Variant
 			sb.Append(" }");
 			return sb.ToString();
 		}
-		
+
+		internal readonly void ConvertToJSON(ref StringifyContext context)
+		{
+			try
+			{
+				context.Push(m_Body!);
+				var appender = context.GetAppender(IsEmpty(), IsSimple());
+
+				appender.Append('{');
+
+				if (Count > 0)
+				{
+					var body = m_Body!;
+					for (int i = 0; i < body.Count; ++i)
+					{
+						if (i != 0)
+						{
+							appender.AppendItemSeparator();
+						}
+						appender.AppendNewLine();
+
+						var key = body.GetKeyAt(i);
+						var value = body.GetValueAt(i);
+
+						appender.Append('"');
+						appender.Append(TextUtil.EscapeJsonString(key, context.Policy.EscapeMultiBytes));
+						appender.Append("\": ");
+						value.ConvertToJSON(ref context);
+					}
+				}
+
+
+				appender.AppendNewLine(-1);
+				appender.Append('}');
+			}
+			finally
+			{
+				context.Pop(m_Body!);
+			}
+		}
+
 	}
 }
+

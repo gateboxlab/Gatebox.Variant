@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Gatebox.Variant.Internal;
 
 #nullable enable
 
@@ -18,7 +19,7 @@ namespace Gatebox.Variant
 
 
 
-		
+
 
 		public JArray(IEnumerable<JValue> values)
 		{
@@ -30,15 +31,17 @@ namespace Gatebox.Variant
 			m_Body = values;
 		}
 
-		public int Count => m_Body?.Count ?? 0;
+		public readonly int Count => m_Body?.Count ?? 0;
 
 		public JValue this[int index]
 		{
-			get {
+			get
+			{
 				// TODO : 実装
 				return new JValue();
 			}
-			set {
+			set
+			{
 				// TODO : 実装
 			}
 		}
@@ -57,6 +60,31 @@ namespace Gatebox.Variant
 		}
 
 		/// <summary>
+		/// 要素を持っていないとき true.
+		/// </summary>
+		public readonly bool IsEmpty() => (Count == 0);
+
+
+		/// <summary>
+		/// 内容がシンプルなとき true.
+		/// <para>
+		/// JSON変換の際の改行の判定に利用されます。
+		/// プリミティブのみからなるとき true になります。</para>
+		/// </summary>
+		public readonly bool IsSimple()
+		{
+			for (int i = 0; i < this.Count; i++)
+			{
+				if (Get(i).IsComposite())
+				{
+					return false;
+				}
+			}
+			return true;
+		}
+
+
+		/// <summary>
 		/// 要素の取得。
 		/// 指定された要素が存在しないときは Null を示す JVariant を返します。
 		/// (このメソッドで Null が入っているのと存在しないのを区別することはできません。Count などを利用してください。)
@@ -70,7 +98,8 @@ namespace Gatebox.Variant
 			return m_Body[index];
 		}
 
-		public void Set(int index, JValue item) { 
+		public void Set(int index, JValue item)
+		{
 			// TODO : 実装
 		}
 
@@ -122,6 +151,37 @@ namespace Gatebox.Variant
 			sb.Append(" ]");
 			return sb.ToString();
 
+		}
+
+		internal readonly void ConvertToJSON(ref StringifyContext context)
+		{
+
+
+			try
+			{
+				context.Push(m_Body!);
+				var appender = context.GetAppender(IsEmpty(), IsSimple());
+
+				appender.Append('[');
+
+				// 各要素、続きならカンマ、改行、要素
+				for (int i = 0; i < this.Count; i++)
+				{
+					if (i != 0)
+					{
+						appender.AppendItemSeparator();
+					}
+					appender.AppendNewLine();
+					this.Get(i).Value.ConvertToJSON(ref context);
+				}
+
+				appender.AppendNewLine(-1);
+				appender.Append(']');
+			}
+			finally
+			{
+				context.Pop(m_Body!);
+			}
 		}
 	}
 }

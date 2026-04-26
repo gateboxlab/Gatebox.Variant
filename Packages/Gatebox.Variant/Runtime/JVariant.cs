@@ -42,7 +42,8 @@ namespace Gatebox.Variant
 		public readonly bool IsString() => VariantType == VariantType.String;
 		public readonly bool IsArray() => VariantType == VariantType.Array;
 		public readonly bool IsObject() => VariantType == VariantType.Object;
-
+		public readonly bool IsComposite() => IsArray() || IsObject();
+		public readonly bool IsPrimitive() => !IsComposite() && !IsNull();
 		public readonly JObject AsObject() => m_Value?.AsObject() ?? new JObject();
 		
 

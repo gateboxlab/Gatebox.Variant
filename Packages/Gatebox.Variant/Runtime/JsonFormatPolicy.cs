@@ -29,10 +29,10 @@ namespace Gatebox.Variant
 	/// </summary>
 	public enum SpecialFloatPolicy
 	{
-		/// <summary>NaN, Infinity があったら文字列で出力する</summary>
+		/// <summary>NaN, Infinity があったら文字列で出力する。JSON としては正しい形式ですが、値の型は失われます。</summary>
 		AsString,
 
-		/// <summary>NaN, Infinity があったら JavaScript のリテラルとして出力する。</summary>
+		/// <summary>NaN, Infinity があったら JavaScript のリテラルとして出力する。JSONとして正しくないものになりますが、JavaScript 含む多くの環境で有効であり、値の型は失われません。</summary>
 		AsJsLiteral,
 
 		/// <summary>NaN, Infinity があったら例外を投げる</summary>
@@ -131,7 +131,7 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// Nan, Infinity の扱い
 		/// </summary>
-		public SpecialFloatPolicy SpecialFloatPolicy { get; init; } = SpecialFloatPolicy.AsString;
+		public SpecialFloatPolicy SpecialFloatPolicy { get; init; } = SpecialFloatPolicy.AsJsLiteral;
 
 
 		/// <summary>

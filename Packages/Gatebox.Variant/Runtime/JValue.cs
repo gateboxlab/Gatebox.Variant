@@ -12,21 +12,76 @@ namespace Gatebox.Variant
 
 	public static class JValueExtensions
 	{
+		/// <summary>
+		/// 内部の値の型を返す。
+		/// </summary>
 		public static VariantType GetVariantType(this JValue? value) => value?.VariantType ?? VariantType.Null;
+
 		public static bool IsNull(this JValue? value) => value.GetVariantType() == VariantType.Null;
 		public static bool IsBoolean(this JValue? value) => value.GetVariantType() == VariantType.Boolean;
 		public static bool IsNumber(this JValue? value) => value.GetVariantType() == VariantType.Integer || value.GetVariantType() == VariantType.Float;
 		public static bool IsString(this JValue? value) => value.GetVariantType() == VariantType.String;
 		public static bool IsArray(this JValue? value) => value.GetVariantType() == VariantType.Array;
 		public static bool IsObject(this JValue? value) => value.GetVariantType() == VariantType.Object;
+		
+		
+		/// <summary>
+		/// 配列かオブジェクトのとき true.
+		/// </summary>
 		public static bool IsComposite(this JValue? value) => value.IsArray() || value.IsObject();
 
-
+		/// <summary>
+		/// 「空である」時 true を返す。
+		/// <para>
+		/// 内部の値の型によって「空である」の意味は異なります。
+		/// <list type="bullet">
+		/// <item>Null: 常に true</item>
+		/// <item>Boolean: false のとき</item>
+		/// <item>Number: 0 のとき</item>
+		/// <item>String: 空文字のとき</item>
+		/// <item>Array: 要素がないとき</item>
+		/// <item>Object: プロパティがないとき</item>
+		/// </list>
+		/// </para>
+		/// </summary>
 		public static bool IsEmpty(this JValue? value)
 		{
 			return value?.IsEmpty ?? true;
 		}
 
+		public static bool AsBool(this JValue v)
+		{
+			return v?.BoolValue ?? false;
+		}
+		public static int AsInt(this JValue v)
+		{
+			return v?.IntValue ?? 0;
+		}
+		public static long AsLong(this JValue v)
+		{
+			return v?.LongValue ?? 0;
+		}
+		public static float AsFloat(this JValue v)
+		{
+			return v?.FloatValue ?? 0.0f;
+		}
+		public static double AsDouble(this JValue v)
+		{
+			return v?.DoubleValue ?? 0.0;
+		}
+		public static string AsString(this JValue v)
+		{
+			return v?.StringValue ?? string.Empty;
+		}
+
+		/// <summary>
+		/// オブジェクトとしての値を返す。
+		/// <para>
+		/// 内部の値がオブジェクトである場合はそのまま返します。
+		/// 内部の値が配列である場合はオブジェクトに変換して返します。
+		/// 内部の値が null またはその他の型である場合は空のオブジェクトを返します。
+		/// </para>
+		/// </summary>
 		public static JObject AsObject(this JValue value)
 		{
 			if (value == null || value.IsNull())
@@ -45,6 +100,15 @@ namespace Gatebox.Variant
 			return new JObject();
 		}
 
+		/// <summary>
+		/// 配列としての値を返す。
+		/// <para>
+		/// 内部の値が配列である場合はそのまま返します。
+		/// 内部の値がオブジェクトである場合は、そのキーがすべて int として解釈可能なときはそれぞれの要素を各 index に詰めた配列を返します。
+		/// int として解釈できないキーがあるときは空の配列を返します。
+		/// 内部の値が null またはその他の型である場合は空の配列を返します。
+		/// </para>
+		/// </summary>
 		public static JArray AsArray(this JValue value)
 		{
 			if (value == null || value.IsNull())
@@ -96,7 +160,7 @@ namespace Gatebox.Variant
 		public static implicit operator JValue(string v) => new JValue(v);
 		public static implicit operator JValue(JArray v) => new JValue(v);
 		public static implicit operator JValue(JObject v) => new JValue(v);
-		public static implicit operator JValue(JVariant v) => new JValue(v);
+		public static implicit operator JValue(JVariant v) => new JValue(v.Value);
 
 
 		/// <summary>
@@ -205,13 +269,13 @@ namespace Gatebox.Variant
 		public JValue(JArray a)
 		{
 			m_Type = VariantType.Array;
-			m_RefValue = a;
+			m_RefValue = a.GetBody();
 		}
 
 		public JValue(JObject o)
 		{
 			m_Type = VariantType.Object;
-			m_RefValue = o;
+			m_RefValue = o.GetBody();
 		}
 
 		public JValue(IVariantConvertible? v)
@@ -498,7 +562,7 @@ namespace Gatebox.Variant
 		/// string 以外を持っているときはなんとなく内容を表す文字列を返します。
 		/// string以外を持っているときにここから返却される文字列に依存しないようにしてください。</para>
 		/// </summary>
-		public string StringValue => ToString();
+		public string StringValue => m_Type == VariantType.String ? (m_RefValue as string ?? string.Empty) : ToString();
 
 		/// <summary>
 		/// 配列としての値。
@@ -527,6 +591,10 @@ namespace Gatebox.Variant
 				if (m_Type == VariantType.Object)
 				{
 					JObject obj = JObject.CreateInternal(GetObjectBody());
+					if( obj.TryConvertToArray(out JArray array))
+					{
+						return array;
+					}
 				}
 				throw new VariantException($"JValue does not contain an array. Actual type: {m_Type}");
 			}
@@ -579,7 +647,11 @@ namespace Gatebox.Variant
 		{
 			if (obj is JVariant other)
 			{
-				return this.Equals(other);
+				return this.Equals(other.Value);
+			}
+			if (obj is JValue value)
+			{
+				return this.Equals(value);
 			}
 			return false;
 		}
@@ -690,7 +762,7 @@ namespace Gatebox.Variant
 				case VariantType.Boolean: return IntValue != 0 ? "true" : "false";
 				case VariantType.Integer: return LongValue.ToString();
 				case VariantType.Float: return DoubleValue.ToString();
-				case VariantType.String: return StringValue.ToString();
+				case VariantType.String: return StringValue;
 			}
 			if (m_Type == VariantType.Array)
 			{
@@ -716,7 +788,7 @@ namespace Gatebox.Variant
 			m_Type = VariantType.Null;
 			m_IntValue = 0;
 			m_FloatValue = 0;
-			m_RefValue = 0;
+			m_RefValue = null;
 		}
 
 		/// <summary>代入。</summary>
@@ -942,24 +1014,170 @@ namespace Gatebox.Variant
 			return false;
 		}
 
+
+		/// <summary>
+		/// JSON 文字列化。
+		/// </summary>
+		/// <param name="policy">フォーマット指定、省略した場合は改行なし。</param>
 		public string Stringify(JsonFormatPolicy? policy = null)
 		{
 			policy ??= JsonFormatPolicy.OneLiner;
 
-			return ToJson(policy);
+			return ToJSON(policy);
 		}
 
-		public string ToJson(JsonFormatPolicy? policy = null)
+		/// <summary>
+		/// JSON 化。
+		/// <para>
+		/// 内容の JSON 表現を返します。</para>
+		/// <para>
+		/// 配列やオブジェクトは内部に配列やオブジェクトを持ち、更に参照経由で内容を共有することができるため、
+		/// 親子関係は循環していることがあります。
+		/// この実装ではそれらを検出することはできないため階層の深さを見ています。
+		/// 64(JsonFormatPolicy.MaxDepth) 以上ネストしたデータは変換できません。
+		/// <para>
+		/// 以下の状況で <see cref="VaraintException"/> を投げます。
+		/// <list type="bullet">
+		///   <item>ネストが <see cref="JsonFormatPolicy.MaxDepth"/> を越えている。</item>
+		///   <item><see cref="JsonFormatPolicy.SpecialFloatPolicy"/> に Throw が指定され、Number 値に NaN, Infinity 等が含まれる。</item>
+		/// </list>
+		/// </para>
+		/// </summary>
+		/// <param name="policy">フォーマット指定、省略した場合はそれなりに改行するポリシー</param>
+		public string ToJSON(JsonFormatPolicy? policy = null)
 		{
 			policy ??= JsonFormatPolicy.Mixed;
-			// TODO : 実装
-			return "{}";
+
+			// そのまま文字列になるもの
+			switch (m_Type)
+			{
+				case VariantType.Null: return "null";
+				case VariantType.Boolean: return m_IntValue != 0 ? "true" : "false";
+				case VariantType.Integer: return m_IntValue.ToString();
+			}
+
+			var context = StringifyContext.ForString(policy);
+			try
+			{
+				ConvertToJSON(ref context);
+				return context.StringResult();
+			}
+			finally
+			{
+				context.Dispose();
+			}
 		}
 
+		/// <summary>
+		/// UTF-8 バイナリによる JSON 化。
+		/// </summary>
+		public U8View ToU8JSON(JsonFormatPolicy? policy = null)
+		{
+			policy ??= JsonFormatPolicy.Mixed;
 
+			// そのまま文字列になるもの
+			switch (m_Type)
+			{
+				case VariantType.Null: return Literal.Null.U8;
+				case VariantType.Boolean: return m_IntValue != 0 ? Literal.True.U8 : Literal.False.U8;
+			}
 
+			var context = StringifyContext.ForU8(policy);
+			try
+			{
+				ConvertToJSON(ref context);
+				return context.U8Result();
+			}
+			finally
+			{
+				context.Dispose();
+			}
+			
+		}
 
+		internal void ConvertToJSON(ref StringifyContext context)
+		{
+			var buffer = context.GetBuffer();
+			switch (m_Type)
+			{
+				case VariantType.Null:
+					buffer.Append(Literal.Null);
+					break;
+				case VariantType.Boolean:
+					buffer.Append(m_IntValue != 0 ? Literal.True : Literal.False);
+					break;
+				case VariantType.Integer:
+					buffer.Append(m_IntValue);
+					break;
+				case VariantType.Float:
+					AppendFloat(ref context, m_FloatValue);
+					break;
+				case VariantType.String:
+					AppendString(ref context, m_RefValue as string);
+					break;
+				case VariantType.Array:
+					JArray.CreateInternal(GetArrayBody()).ConvertToJSON(ref context);
+					break;
+				case VariantType.Object:
+					JObject.CreateInternal(GetObjectBody()).ConvertToJSON(ref context);
+					break;
+			}
+		}
 
+		// 浮動小数の JSON 化。NaN, Infinity 等の特殊な値の扱いは context.Policy.SpecialFloatPolicy に従います。
+		private static void AppendFloat(ref StringifyContext context, double v)
+		{
+			var floatPolicy = context.Policy.SpecialFloatPolicy;
+			var buffer = context.GetBuffer();
+
+			void AppendSpecialFloat(Literal literal)
+			{
+				if (floatPolicy == SpecialFloatPolicy.Throw)
+				{
+					throw new JsonFormatException($"{literal.U16} is not allowed.");
+				}
+				if (floatPolicy == SpecialFloatPolicy.AsJsLiteral)
+				{
+					buffer.Append(literal);
+					return;
+				}
+				if (floatPolicy == SpecialFloatPolicy.AsString)
+				{
+					buffer.Append('"');
+					buffer.Append(literal);
+					buffer.Append('"');
+					return;
+				}
+			}
+
+			if (double.IsNaN(v))
+			{
+				AppendSpecialFloat(Literal.NaN);
+				return;
+			}
+			if (double.IsPositiveInfinity(v))
+			{
+				AppendSpecialFloat(Literal.Infinity);
+				return;
+			}
+			if (double.IsNegativeInfinity(v))
+			{
+				AppendSpecialFloat(Literal.NegativeInfinity);
+				return;
+			}
+
+			buffer.Append(v);
+		}
+
+		private static void AppendString(ref StringifyContext context, string? v)
+		{
+			string escaped = TextUtil.EscapeJsonString(v, context.Policy.EscapeMultiBytes);
+			var buffer = context.GetBuffer();
+
+			buffer.Append('"');
+			buffer.Append(escaped);
+			buffer.Append('"');
+		}
 
 		// Object として key の要素を確保して返す。
 		// 配列の場合は key が int 解釈可能であればそちらを優先して確保して返す。

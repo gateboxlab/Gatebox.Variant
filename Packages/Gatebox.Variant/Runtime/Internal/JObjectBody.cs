@@ -14,8 +14,7 @@ namespace Gatebox.Variant.Internal
 	/// <summary>
 	/// JObject の中身 string-JValue の Dictionary
 	/// <para>
-	/// 通常は JObject を利用してください。
-	/// </para>
+	/// 通常は JObject を利用してください。</para>
 	/// </summary>
 	public class JObjectBody : IDictionary<string, JValue>
 	{
