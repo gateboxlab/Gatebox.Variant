@@ -404,7 +404,7 @@ namespace Gatebox.Variant
 		}
 		public string ToJson(JsonFormatPolicy? policy = null)
 		{
-			return AsVariant().Stringify(policy);
+			return AsVariant().ToJson(policy);
 		}
 		public readonly U8View ToU8Json(JsonFormatPolicy? policy = null)
 		{

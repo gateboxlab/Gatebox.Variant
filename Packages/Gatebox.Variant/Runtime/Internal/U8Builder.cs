@@ -2,6 +2,7 @@
 using System.Buffers;
 using System.Buffers.Text;
 using System.Diagnostics.CodeAnalysis;
+using System.Globalization;
 using System.Text;
 
 #nullable enable
@@ -10,6 +11,7 @@ namespace Gatebox.Variant.Internal
 {
 	public class U8Builder : IDisposable
 	{
+	
 		private byte[]? m_Body;
 		private int m_Length;
 
@@ -141,12 +143,37 @@ namespace Gatebox.Variant.Internal
 		public void Append(double v)
 		{
 			Span<byte> buf = stackalloc byte[32];
-			if (!Utf8Formatter.TryFormat(v, buf, out int bytesWritten, new StandardFormat('R')))
-			{
-				throw new InvalidOperationException("Failed to format double value.");
-			}
+			var bytesWritten = FormatDouble(v, buf);
 			Append(buf.Slice(0, bytesWritten));
 		}
+
+		
+		private int FormatDouble(double v, Span<byte> buffer)
+		{
+			try
+			{
+				if (Utf8Formatter.TryFormat(v, buffer, out int bytesWritten, new StandardFormat('G')))
+				{
+					return bytesWritten;
+				}
+			}
+			catch (NotSupportedException)
+			{
+				// 'G' は OK なんだが、 Unity で G17 とかやると NotSupportedException とかが来る。
+				// (つまりフォーマットを変えるときは環境によって NotSupportedException をキャッチする必要がある。)
+				// 備忘録的にキャッチを残しておく。
+			}
+
+			// string にするしかない。
+			// シングルバイト文字しか来ないはずなので、 byte[] にはせずに、個々に byte に変換して返す。
+			string s = v.ToString("G", CultureInfo.InvariantCulture);
+			for ( int i = 0; i < s.Length; i++)
+			{
+				buffer[i] = (byte)s[i];
+			}
+			return s.Length;
+		}
+
 
 		[MemberNotNull(nameof(m_Body))]
 		private void EnsureCapacity(int capacity)

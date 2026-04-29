@@ -7,6 +7,89 @@ namespace Gatebox.Variant
 	public class JValueTest
 	{
 		[Test]
+		public void TestImplicitCast()
+		{
+			// 各種プリミティブから作れる。
+			// 条件式は IsEmpty で判別される。( null でないことがわかってるなら isEmpty を使ったほうがいいと思うけど)
+			JValue v = null;
+
+			if (v)
+			{
+				Assert.Fail();
+			}
+
+			v = new JVariant();
+			if (v)
+			{
+				Assert.Fail();
+			}
+
+			v = false;
+			if (v)
+			{
+				Assert.Fail();
+			}
+
+			v = 0;
+			if (v)
+			{
+				Assert.Fail();
+			}
+
+			v = "";
+			if (v)
+			{
+				Assert.Fail();
+			}
+
+			v = new JObject();
+			if (v)
+			{
+				Assert.Fail();
+			}
+
+			v = new JArray();
+			if (v)
+			{
+				Assert.Fail();
+			}
+
+			v = true;
+			if (!v)
+			{
+				Assert.Fail();
+			}
+
+			v = 1;
+			if (!v)
+			{
+				Assert.Fail();
+			}
+
+			v = "a";
+			if (!v)
+			{
+				Assert.Fail();
+			}
+
+			JObject obj = new JObject() { ["x"] = 1 };
+			v = obj;
+			if (!v)
+			{
+				Assert.Fail();
+			}
+
+			JArray array = new JArray() { 1 };
+			v = array;
+			if (!v)
+			{
+				Assert.Fail();
+			}
+
+		}
+
+
+		[Test]
 		public void StringValueAndToStringReturnStoredString()
 		{
 			var value = new JValue("hello");
