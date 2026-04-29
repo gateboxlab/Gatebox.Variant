@@ -53,27 +53,38 @@ namespace Gatebox.Variant
 			return value?.IsEmpty ?? true;
 		}
 
-		public static bool AsBool(this JValue v)
+		/// <summary>
+		/// bool 値。bool 以外を持っている場合はそれなりに変換しますが、それに依存しないようにしてください。
+		/// <para>
+		/// bool 以外を持っていた場合は以下の値を返します。
+		/// Null    ⇒ false
+		/// Integer ⇒ 0 以外のとき true
+		/// Float   ⇒ 0.0 と等しくないとき true
+		/// String  ⇒ 数値として解釈可能であればそれが 0 以外のとき true. 数値ではないときは "true" と Case Insensitive に比較した結果
+		/// Array   ⇒ 要素数が 0 ではないとき true
+		/// Object  ⇒ 要素数が 0 ではないとき true</para>
+		/// </summary>
+		public static bool AsBool(this JValue? v)
 		{
 			return v?.BoolValue ?? false;
 		}
-		public static int AsInt(this JValue v)
+		public static int AsInt(this JValue? v)
 		{
 			return v?.IntValue ?? 0;
 		}
-		public static long AsLong(this JValue v)
+		public static long AsLong(this JValue? v)
 		{
 			return v?.LongValue ?? 0;
 		}
-		public static float AsFloat(this JValue v)
+		public static float AsFloat(this JValue? v)
 		{
 			return v?.FloatValue ?? 0.0f;
 		}
-		public static double AsDouble(this JValue v)
+		public static double AsDouble(this JValue? v)
 		{
 			return v?.DoubleValue ?? 0.0;
 		}
-		public static string AsString(this JValue v)
+		public static string AsString(this JValue? v)
 		{
 			return v?.StringValue ?? string.Empty;
 		}
@@ -86,7 +97,7 @@ namespace Gatebox.Variant
 		/// 内部の値が null またはその他の型である場合は空のオブジェクトを返します。
 		/// </para>
 		/// </summary>
-		public static JObject AsObject(this JValue value)
+		public static JObject AsObject(this JValue? value)
 		{
 			if (value == null || value.IsNull())
 			{
@@ -113,7 +124,7 @@ namespace Gatebox.Variant
 		/// 内部の値が null またはその他の型である場合は空の配列を返します。
 		/// </para>
 		/// </summary>
-		public static JArray AsArray(this JValue value)
+		public static JArray AsArray(this JValue? value)
 		{
 			if (value == null || value.IsNull())
 			{
@@ -407,7 +418,7 @@ namespace Gatebox.Variant
 		/// String  ⇒ 数値として解釈可能であればそれが 0 以外のとき true. 数値ではないときは "true" と Case Insensitive に比較した結果
 		/// Array   ⇒ 要素数が 0 ではないとき true
 		/// Object  ⇒ 要素数が 0 ではないとき true</para>
-		/// <seealso cref="JVariantExtensions.AsBool(JVariant)"/>
+		/// <seealso cref="JValueExtensions.AsBool(JValue)"/>
 		/// </summary>
 		public bool BoolValue
 		{
@@ -566,7 +577,17 @@ namespace Gatebox.Variant
 		/// string 以外を持っているときはなんとなく内容を表す文字列を返します。
 		/// string以外を持っているときにここから返却される文字列に依存しないようにしてください。</para>
 		/// </summary>
-		public string StringValue => m_Type == VariantType.String ? (m_RefValue as string ?? string.Empty) : ToString();
+		public string StringValue
+		{
+			get
+			{
+				if( m_Type == VariantType.Null)
+				{
+					return "null";
+				}
+				return m_Type == VariantType.String ? (m_RefValue as string ?? string.Empty) : ToString();
+			}
+		}
 
 		/// <summary>
 		/// 配列としての値。
@@ -722,7 +743,7 @@ namespace Gatebox.Variant
 		/// ハッシュコード
 		/// <para>
 		/// それなりに仕様に則ったハッシュコードを返しますが、
-		/// JVariant をハッシュのキーにするようなことは避けてください。
+		/// JValue をハッシュのキーにするようなことは避けてください。
 		/// </para>
 		/// </summary>
 		public override int GetHashCode()
@@ -756,13 +777,13 @@ namespace Gatebox.Variant
 		/// string の場合は設定されている string そのもの。
 		/// その他はなんとなく内容を表す文字列を返します。JSON表現ではないので注意してください。</para>
 		/// <para>
-		/// null のとき "null" ではなく空の文字列を返します。</para>
+		/// null のときは null という文字列を返します。</para>
 		/// </summary>
 		public override string ToString()
 		{
 			switch (m_Type)
 			{
-				case VariantType.Null: return "";
+				case VariantType.Null: return "null";
 				case VariantType.Boolean: return IntValue != 0 ? "true" : "false";
 				case VariantType.Integer: return LongValue.ToString();
 				case VariantType.Float: return DoubleValue.ToString();
