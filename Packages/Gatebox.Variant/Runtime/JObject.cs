@@ -319,7 +319,22 @@ namespace Gatebox.Variant
 		/// </summary>
 		readonly bool ICollection<KeyValuePair<string, JValue>>.Remove(KeyValuePair<string, JValue> item)
 		{
-			return m_Body?.Remove(new StringView(item.Key)) ?? false;
+			if( m_Body == null )
+			{
+				return false;
+			}
+			int index = m_Body.Find(new StringView(item.Key));
+			if( index < 0 )
+			{
+				return false;
+			}
+
+			var v = m_Body.GetValueAt(index);
+			if( v == null || !v.Equals(item.Value) )
+			{
+				return false;
+			}
+			return m_Body.RemoveAt(index);
 		}
 
 		/// <summary>
@@ -565,7 +580,7 @@ namespace Gatebox.Variant
 				}
 			}
 
-			var ret = new JVariant();
+			var ret = new JValue();
 			m_Body[key] = ret;
 			return ret;
 		}

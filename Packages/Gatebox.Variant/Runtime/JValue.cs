@@ -928,7 +928,7 @@ namespace Gatebox.Variant
 		/// （自分自身が配列でなければ配列に変換される、指定された要素がなければ確保する）
 		/// その挙動が望ましくない場合は Get() を利用してください。</para>
 		/// </summary>
-		public JVariant this[int index]
+		public JValue this[int index]
 		{
 			get => EnsureArrayItem(index);
 			set => EnsureArrayItem(index).Assign(value);
@@ -990,7 +990,7 @@ namespace Gatebox.Variant
 		/// （自分自身がオブジェクトでなければオブジェクトに変換される、指定された要素がなければ確保する）
 		/// その挙動が望ましくない場合は Get() を利用してください。</para>
 		/// </summary>
-		public JVariant this[StringView key]
+		public JValue this[StringView key]
 		{
 			get => EnsureObjectItem(key);
 			set => EnsureObjectItem(key).Assign(value);
