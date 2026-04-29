@@ -3,8 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Gatebox.Variant.Internal;
 
 
@@ -13,6 +11,15 @@ using Gatebox.Variant.Internal;
 namespace Gatebox.Variant
 {
 
+	/// <summary>
+	/// javascript 的なオブエジェクトを表す値型。
+	/// <para>
+	/// IDictionary&lt;string, JValue&gt; を実装します。string と JSON の値のマップとして扱うことができます。</para>
+	/// <para>
+	/// このクラスは値型ですが「参照を値で持っている」という状態であるため注意してください。
+	/// JObject をコピーする、という行為はその参照をコピーすることになり、
+	/// 結果として内部情報は共有されることになります。</para>
+	/// </summary>
 	public struct JObject : IDictionary<string, JValue>, IVariantConvertible
 	{
 		//==============================================================================
@@ -176,13 +183,8 @@ namespace Gatebox.Variant
 		/// すでに同じキーがある場合は AugumentException を投げます。
 		/// この挙動が望ましくない場合は Set() を利用してください。</para>
 		/// </summary>
-		public void Add(string key, bool v) { AddInternal(key, new JVariant(v)); }
-		public void Add(string key, long v) { AddInternal(key, new JVariant(v)); }
-		public void Add(string key, double v) { AddInternal(key, new JVariant(v)); }
-		public void Add(string key, string v) { AddInternal(key, new JVariant(v)); }
-		public void Add(string key, JArray v) { AddInternal(key, new JVariant(v)); }
-		public void Add(string key, JObject v) { AddInternal(key, new JVariant(v)); }
 		public void Add(string key, JValue v) { AddInternal(key, v); }
+		public void Add(string key, JVariant v) { AddInternal(key, v); }
 
 		/// <summary>
 		/// KeyValuePair による追加。
@@ -222,14 +224,12 @@ namespace Gatebox.Variant
 
 		/// <summary>
 		/// 内容の設定。
+		/// <para>
+		/// 個々の要素である JValue は可変の参照型ですが、
+		/// 設定時は基本的に参照を替えるのではなく、内容を書き換えようとします。</para>
 		/// </summary>
-		public void Set(StringView key, bool value) { EnsureItem(key).Assign(value); }
-		public void Set(StringView key, long value) { EnsureItem(key).Assign(value); }
-		public void Set(StringView key, double value) { EnsureItem(key).Assign(value); }
-		public void Set(StringView key, string value) { EnsureItem(key).Assign(value); }
-		public void Set(StringView key, JArray value) { EnsureItem(key).Assign(value); }
-		public void Set(StringView key, JObject value) { EnsureItem(key).Assign(value); }
 		public void Set(StringView key, JVariant value) { EnsureItem(key).Assign(value); }
+		public void Set(StringView key, JValue value) { EnsureItem(key).Assign(value); }
 
 
 
@@ -292,7 +292,7 @@ namespace Gatebox.Variant
 			}
 		}
 
-		IEnumerator IEnumerable.GetEnumerator()
+		readonly IEnumerator IEnumerable.GetEnumerator()
 		{
 			return GetEnumerator();
 		}
@@ -300,7 +300,7 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// 要素削除
 		/// </summary>
-		public bool Remove(string key)
+		public readonly bool Remove(string key)
 		{
 			return m_Body?.Remove(key) ?? false;
 		}
@@ -308,7 +308,7 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// 要素削除
 		/// </summary>
-		public bool Remove(StringView key)
+		public readonly bool Remove(StringView key)
 		{
 			return m_Body?.Remove(key) ?? false;
 		}
@@ -317,7 +317,7 @@ namespace Gatebox.Variant
 		/// 要素削除
 		/// <para>ICollection の実装のためのものです。</para>
 		/// </summary>
-		bool ICollection<KeyValuePair<string, JValue>>.Remove(KeyValuePair<string, JValue> item)
+		readonly bool ICollection<KeyValuePair<string, JValue>>.Remove(KeyValuePair<string, JValue> item)
 		{
 			return m_Body?.Remove(new StringView(item.Key)) ?? false;
 		}
@@ -383,7 +383,7 @@ namespace Gatebox.Variant
 			return new JVariant(this);
 		}
 
-		public string Stringify(JsonFormatPolicy? policy = null)
+		public readonly string Stringify(JsonFormatPolicy? policy = null)
 		{
 			return AsVariant().Stringify(policy);
 		}
@@ -391,7 +391,7 @@ namespace Gatebox.Variant
 		{
 			return AsVariant().Stringify(policy);
 		}
-		public U8View ToU8Json(JsonFormatPolicy? policy = null)
+		public readonly U8View ToU8Json(JsonFormatPolicy? policy = null)
 		{
 			return AsVariant().ToU8Json(policy);
 		}

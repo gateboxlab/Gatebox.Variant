@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Threading;
 using NUnit.Framework;
 
 namespace Gatebox.Variant
@@ -34,6 +36,30 @@ namespace Gatebox.Variant
 
 			Assert.That(value.Equals(variant), Is.True);
 			Assert.That(value.Equals(sameValue), Is.True);
+		}
+
+		[Test]
+		public void FloatingPointJsonUsesInvariantCulture()
+		{
+			var originalCulture = Thread.CurrentThread.CurrentCulture;
+			var originalUICulture = Thread.CurrentThread.CurrentUICulture;
+
+			try
+			{
+				var culture = CultureInfo.GetCultureInfo("fr-FR");
+				Thread.CurrentThread.CurrentCulture = culture;
+				Thread.CurrentThread.CurrentUICulture = culture;
+
+				var value = new JValue(1.25);
+
+				Assert.That(value.ToJson(), Is.EqualTo("1.25"));
+				Assert.That(value.ToU8Json().ToString(), Is.EqualTo("1.25"));
+			}
+			finally
+			{
+				Thread.CurrentThread.CurrentCulture = originalCulture;
+				Thread.CurrentThread.CurrentUICulture = originalUICulture;
+			}
 		}
 	}
 }

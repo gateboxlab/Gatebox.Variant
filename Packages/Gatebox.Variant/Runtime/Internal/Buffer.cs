@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Text;
 
 #nullable enable
@@ -73,7 +74,7 @@ namespace Gatebox.Variant.Internal
 
 		public void Append(double d)
 		{
-			m_Builder.Append(d);
+			m_Builder.Append(d.ToString("R", CultureInfo.InvariantCulture));
 		}
 
 		public void Append(U8View v)
@@ -129,9 +130,7 @@ namespace Gatebox.Variant.Internal
 
 		public void Append(double d)
 		{
-			// これがすごく効率が悪い。dtoa の C# 実装が必要
-			string s = d.ToString();
-			m_Builder.Append(s);
+			m_Builder.Append(d);
 		}
 
 		public void Append(U8View v)

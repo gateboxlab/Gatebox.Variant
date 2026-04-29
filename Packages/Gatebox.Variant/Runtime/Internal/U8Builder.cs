@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Buffers;
+using System.Buffers.Text;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
@@ -135,6 +136,16 @@ namespace Gatebox.Variant.Internal
 			Span<byte> buf = stackalloc byte[32];
 			ReadOnlySpan<byte> span = LongToSpan(v, ref buf);
 			Append(span);
+		}
+
+		public void Append(double v)
+		{
+			Span<byte> buf = stackalloc byte[32];
+			if (!Utf8Formatter.TryFormat(v, buf, out int bytesWritten, new StandardFormat('R')))
+			{
+				throw new InvalidOperationException("Failed to format double value.");
+			}
+			Append(buf.Slice(0, bytesWritten));
 		}
 
 		[MemberNotNull(nameof(m_Body))]
