@@ -164,7 +164,7 @@ namespace Gatebox.Variant
 			}
 
 			m_StringMap ??= new();
-			m_StringMap.Add(view, value);
+			m_StringMap[view] = value;
 		}
 
 		public void SetString(U8View view, string value)
@@ -183,7 +183,7 @@ namespace Gatebox.Variant
 			}
 
 			m_U8Map ??= new();
-			m_U8Map.Add(view, value);
+			m_U8Map[view] = value;
 		}
 
 		public string? TryGetString(StringView view)
