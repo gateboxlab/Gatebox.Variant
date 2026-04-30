@@ -278,7 +278,7 @@ namespace Gatebox.Variant
 		public JValue(string s)
 		{
 			m_Type = VariantType.String;
-			m_RefValue = s;
+			m_RefValue = s ?? string.Empty;
 		}
 
 		public JValue(JArray a)
