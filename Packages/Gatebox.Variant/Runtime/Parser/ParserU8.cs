@@ -504,10 +504,9 @@ namespace Gatebox.Variant.Parser
 								throw Fail(reader.Position, "invalid Unicode sequence.");
 							}
 
-							char letter = ParseUnicode(unicode);
-							if (letter == '\0')
+							if (!TryParseUnicode(unicode, out char letter))
 							{
-								throw Fail(reader.Position, $"invalid Unicode sequence. ({letter})");
+								throw Fail(reader.Position, "invalid Unicode sequence.");
 							}
 
 							sb.Append(letter);
@@ -574,9 +573,15 @@ namespace Gatebox.Variant.Parser
 			while (true)
 			{
 				var ch = reader.Current;
-				if (ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t' || ch == 0xFE || ch == 0xFF)
+				if (ch == ' ' || ch == '\r' || ch == '\n' || ch == '\t')
 				{
 					reader.Advance();
+					continue;
+				}
+				var bom = reader.PeekAhead(0, 3);
+				if (bom.Length == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF)
+				{
+					reader.Advance(3);
 					continue;
 				}
 				break;
@@ -650,12 +655,13 @@ namespace Gatebox.Variant.Parser
 		}
 
 
-		// \\uXXXX 表記の Unicode 文字をパース、失敗したら '\0' を返す。
-		private static char ParseUnicode(U8View s)
+		// \\uXXXX 表記の Unicode 文字をパースする。失敗したら false。
+		private static bool TryParseUnicode(U8View s, out char value)
 		{
 			if (s.Length != 4)
 			{
-				return '\0';
+				value = '\0';
+				return false;
 			}
 			int i3 = Parse1DigitHex(s[0]);
 			int i2 = Parse1DigitHex(s[1]);
@@ -664,10 +670,12 @@ namespace Gatebox.Variant.Parser
 
 			if (i3 < 0 || i2 < 0 || i1 < 0 || i0 < 0)
 			{
-				return '\0';
+				value = '\0';
+				return false;
 			}
 
-			return (char)((i3 << 12) | (i2 << 8) | (i1 << 4) | i0);
+			value = (char)((i3 << 12) | (i2 << 8) | (i1 << 4) | i0);
+			return true;
 		}
 
 		// トークンっぽい部分を読む

@@ -12,6 +12,11 @@ namespace Gatebox.Variant
 			return new JVariant().Parse(json, throws);
 		}
 
+		private static JVariant ParseU8(string json, bool throws = true)
+		{
+			return new JVariant().Parse(U8View.Create(json), throws);
+		}
+
 		// コンストラクタ
 		[Test]
 		public void TestConstruct()
@@ -144,6 +149,53 @@ namespace Gatebox.Variant
 		public void ParseAcceptsEscapedNullCharacter()
 		{
 			var parsed = Parse("\"\\u0000\"");
+
+			Assert.That(parsed.IsString(), Is.True);
+			Assert.That(parsed.AsString().Length, Is.EqualTo(1));
+			Assert.That(parsed.AsString()[0], Is.EqualTo('\0'));
+		}
+
+		[Test]
+		public void ParseU8ParsesObjectsArraysAndStringEscapes()
+		{
+			var parsed = ParseU8("{\"name\":\"Gatebox\",\"values\":[1,true,null],\"message\":\"line\\nquote:\\\" slash:\\/ backslash:\\\\\"}");
+
+			Assert.That(parsed.IsObject(), Is.True);
+			Assert.That(parsed["name"].AsString(), Is.EqualTo("Gatebox"));
+			Assert.That(parsed["values"].AsArray().Count, Is.EqualTo(3));
+			Assert.That(parsed["values"][0].AsInt(), Is.EqualTo(1));
+			Assert.That(parsed["values"][1].AsBool(), Is.True);
+			Assert.That(parsed["values"][2].IsNull(), Is.True);
+			Assert.That(parsed["message"].AsString(), Is.EqualTo("line\nquote:\" slash:/ backslash:\\"));
+		}
+
+		[Test]
+		public void ParseU8ReturnsNullVariantOnInvalidJsonWhenThrowsIsFalse()
+		{
+			var parsed = ParseU8("{", throws: false);
+
+			Assert.That(parsed.IsNull(), Is.True);
+		}
+
+		[Test]
+		public void ParseU8ThrowsOnInvalidJsonWhenThrowsIsTrue()
+		{
+			Assert.That(() => ParseU8("{"), Throws.TypeOf<JsonParseException>());
+			Assert.That(() => ParseU8("\"\\u12ZZ\""), Throws.TypeOf<JsonParseException>());
+		}
+
+		[Test]
+		public void ParseU8AcceptsLeadingBom()
+		{
+			var parsed = ParseU8("\uFEFF{\"value\":1}");
+
+			Assert.That(parsed["value"].AsInt(), Is.EqualTo(1));
+		}
+
+		[Test]
+		public void ParseU8AcceptsEscapedNullCharacter()
+		{
+			var parsed = ParseU8("\"\\u0000\"");
 
 			Assert.That(parsed.IsString(), Is.True);
 			Assert.That(parsed.AsString().Length, Is.EqualTo(1));
