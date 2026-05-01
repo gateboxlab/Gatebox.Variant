@@ -7,7 +7,7 @@ using Gatebox.Variant.Extensions;
 
 namespace Gatebox.Variant.Internal
 {
-	internal class TextUtil
+	public class TextUtil
 	{
 		/// <summary>
 		/// バックスラッシュのエスケープを行う。

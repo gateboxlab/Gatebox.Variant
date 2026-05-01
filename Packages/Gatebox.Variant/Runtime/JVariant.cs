@@ -27,6 +27,14 @@ namespace Gatebox.Variant
 		//==============================================================================
 		public const int DefaultMaxDepth = 64;
 
+
+		public JVariant Parse( StringView source, bool throws = false)
+		{
+			return JsonParser.CreateTemporary().Parse(source, throws);
+		}
+
+
+
 		//==============================================================================
 		// operators
 		//==============================================================================

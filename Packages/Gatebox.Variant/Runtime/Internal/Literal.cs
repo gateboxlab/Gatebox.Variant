@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Gatebox.Variant.Internal
 {
-	internal readonly struct Literal
+	public readonly struct Literal
 	{
 		public static readonly Literal Null = new("null");
 		public static readonly Literal True = new("true");

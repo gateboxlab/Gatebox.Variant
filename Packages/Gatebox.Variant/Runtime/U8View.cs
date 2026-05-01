@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 
+#nullable enable
 
 namespace Gatebox.Variant
 {
@@ -491,7 +493,7 @@ namespace Gatebox.Variant
 		//==============================================================================
 
 
-		private readonly byte[] m_Bytes;
+		private readonly byte[]? m_Bytes;
 		private readonly int m_Begin;
 		private readonly int m_Length;
 
@@ -499,7 +501,7 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// byte[] からのコンストラクタ
 		/// </summary>
-		public U8View(byte[] bytes)
+		public U8View(byte[]? bytes)
 		{
 			bytes ??= Array.Empty<byte>();
 
@@ -516,7 +518,7 @@ namespace Gatebox.Variant
 		/// <para>
 		/// 範囲外の位置を指定した場合、例外ではなく空の範囲を示す U8View が返されます。</para>
 		/// </summary>
-		public U8View(byte[] bytes, int begin, int end = -1)
+		public U8View(byte[]? bytes, int begin, int end = -1)
 		{
 			if (bytes == null || begin < 0 || begin >= bytes.Length)
 			{
@@ -545,7 +547,7 @@ namespace Gatebox.Variant
 		/// <para>
 		/// 範囲外の位置を指定した場合、例外ではなく空の範囲を示す U8View が返されます。</para>
 		/// </summary>
-		public U8View(byte[] bytes, Range range)
+		public U8View(byte[]? bytes, Range range)
 		{
 			if (bytes == null)
 			{
@@ -583,7 +585,7 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// もととなる byte[]. null である可能性があります。
 		/// </summary>
-		public readonly byte[] Original => m_Bytes;
+		public readonly byte[]? Original => m_Bytes;
 
 		/// <summary>
 		/// 開始位置
@@ -839,7 +841,7 @@ namespace Gatebox.Variant
 		/// </summary>
 		public readonly U8View Shrink()
 		{
-			if (IsEmpty() || this.Length == m_Bytes.Length)
+			if (IsEmpty() || this.Length == m_Bytes?.Length)
 			{
 				return this;
 			}
@@ -1078,6 +1080,7 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// なにもない時 true.
 		/// </summary>
+		[MemberNotNullWhen(false, nameof(m_Bytes))]
 		public readonly bool IsEmpty() => m_Length == 0;
 
 		/// <summary>
@@ -1287,6 +1290,11 @@ namespace Gatebox.Variant
 		/// <param name="end">終了位置、省略時は最後まで</param>
 		public readonly U8View Slice(int begin, int end = -1)
 		{
+			if( IsEmpty())
+			{
+				return new U8View();
+			}
+
 			if (begin < 0)
 			{
 				return new U8View();

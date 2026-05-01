@@ -175,7 +175,7 @@ namespace Gatebox.Variant
 		public static implicit operator JValue(string v) => new JValue(v);
 		public static implicit operator JValue(JArray v) => new JValue(v);
 		public static implicit operator JValue(JObject v) => new JValue(v);
-		public static implicit operator JValue(JVariant v) => new JValue(v.Value);
+		public static implicit operator JValue(JVariant v) => new JValue(v.Value!);
 
 
 		/// <summary>
@@ -860,7 +860,10 @@ namespace Gatebox.Variant
 		/// <summary>代入。</summary>
 		public void Assign(JVariant v)
 		{
-			Assign(v.Value);
+			// これはシグネチャは 非null だが、実際には null であることもある。
+			// ユーザーに見せるシグネチャとしては非nullになっているが、実際にはそれは問題なく、
+			// Null を示す JValue とみなされる。
+			Assign(v.Value!);
 		}
 
 		/// <summary>代入。</summary>

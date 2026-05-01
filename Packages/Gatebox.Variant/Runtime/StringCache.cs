@@ -76,12 +76,12 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// コンストラクタ
 		/// </summary>
-		/// <param name="maxLength">キャッシュする文字列の最大長</param>
-		/// <param name="isToShrink">キー側文字列を縮小保持するかどうか</param>
-		public StringCache(int maxLength, bool isToShrink)
+		/// <param name="max_length">キャッシュする文字列の最大長</param>
+		/// <param name="to_shrink">キー側文字列を縮小保持するかどうか。trueにするとキー文字列はソースの文字列内の部分文字列のままキャッシュのキーになることがあります。</param>
+		public StringCache(int max_length, bool to_shrink = true)
 		{
-			m_MaxLength = maxLength;
-			m_IsToShrink = isToShrink;
+			m_MaxLength = max_length;
+			m_IsToShrink = to_shrink;
 		}
 
 		public string GetString(StringView view)
@@ -96,7 +96,6 @@ namespace Gatebox.Variant
 			{
 				return view.ToString();
 			}
-
 
 			m_StringMap ??= new();
 
