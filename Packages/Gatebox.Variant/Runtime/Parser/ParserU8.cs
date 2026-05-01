@@ -1,27 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Gatebox.Variant.Internal;
 
 #nullable enable
 
 namespace Gatebox.Variant.Parser
 {
-	public readonly struct ParserU16
+	public readonly struct ParserU8
 	{
 		//==============================================================================
 		// inner types
 		//==============================================================================
 
 		/// <summary>
-		/// StringView を１文字づつ読みすすめていくもの。
+		/// U8View を１文字づつ読みすすめていくもの。
 		/// <para>
 		/// 変更可能な struct なので注意</para>
 		/// </summary>
-		private struct Reader
+		internal struct Reader
 		{
 			private Position m_Position;
 
-			public Reader(StringView s)
+			public Reader(U8View s)
 			{
 				Source = s;
 				m_Position = new Position();
@@ -40,7 +41,7 @@ namespace Gatebox.Variant.Parser
 			/// <summary>
 			/// 元の文字列
 			/// </summary>
-			public readonly StringView Source { get; }
+			public readonly U8View Source { get; }
 
 			/// <summary>
 			/// 終わっているか
@@ -52,22 +53,22 @@ namespace Gatebox.Variant.Parser
 			/// <summary>
 			/// 今の文字
 			/// </summary>
-			public readonly char Current => Source[m_Position.Index];
+			public readonly int Current => Source[m_Position.Index];
 
 			/// <summary>
 			/// 次の文字
 			/// <para>
 			/// StringView の仕様として、末尾 +1 へのアクセスは許されていて、 0 が返却される。 </para>
 			/// </summary>
-			public readonly char Next => Source[m_Position.Index + 1];
+			public readonly int Next => Source[m_Position.Index + 1];
 
 
-			public readonly StringView PeekAhead(int begin, int end = -1)
+			public readonly U8View PeekAhead(int begin, int end = -1)
 			{
 				return Source.Slice(m_Position.Index + begin, m_Position.Index + end);
 			}
 
-			public readonly StringView Peek(int begin, int end = -1)
+			public readonly U8View Peek(int begin, int end = -1)
 			{
 				return Source.Slice(begin, end);
 			}
@@ -101,22 +102,27 @@ namespace Gatebox.Variant.Parser
 			}
 		}
 
-
 		//==============================================================================
 		// instance members
 		//==============================================================================
 
+
+
 		private readonly IStringCache m_StringCache;
 
-		public ParserU16(IStringCache stringCache)
+
+		/// <summary>
+		/// コンストラクタ
+		/// </summary>
+		public ParserU8(IStringCache cache)
 		{
-			m_StringCache = stringCache;
+			m_StringCache = cache;
 		}
 
 		/// <summary>
 		/// パース
 		/// </summary>
-		public JVariant Parse(StringView source)
+		public JVariant Parse(U8View source)
 		{
 			var reader = new Reader(source);
 			SkipTrivial(ref reader);
@@ -172,18 +178,18 @@ namespace Gatebox.Variant.Parser
 			ReadToken(ref reader);
 			var token = reader.Source.Slice(pos.Index, reader.Position.Index);
 
-			if (token == "null")
+			if (token == Literal.Null.U8)
 			{
 				return new JVariant();
 			}
 
-			if (token == "true")
+			if (token == Literal.True.U8)
 			{
 				ret.Assign(true);
 				return new JVariant(true);
 			}
 
-			if (token == "false")
+			if (token == Literal.False.U8)
 			{
 				return new JVariant(false);
 			}
@@ -193,21 +199,19 @@ namespace Gatebox.Variant.Parser
 				return new JVariant(l);
 			}
 
-			if (token == "NaN")
+			if (token == Literal.NaN.U8)
 			{
 				return new JVariant(double.NaN);
 			}
 
-			if (token == "Infinity")
+			if (token == Literal.Infinity.U8)
 			{
 				return new JVariant(double.PositiveInfinity);
 			}
-
-			if (token == "-Infinity")
+			if (token == Literal.NegativeInfinity.U8)
 			{
 				return new JVariant(double.NegativeInfinity);
 			}
-
 			if (token.TryParseDouble(out double d))
 			{
 				return new JVariant(d);
@@ -222,6 +226,7 @@ namespace Gatebox.Variant.Parser
 				throw Fail(pos, $"invalid token. [{token}]");
 			}
 		}
+
 
 		private JObject ParseObject(ref Reader reader)
 		{
@@ -254,12 +259,13 @@ namespace Gatebox.Variant.Parser
 					break;
 				}
 
+
 				// キー
 				string key;
 
 				if (ch == '\"' || ch == '\'')
 				{
-					key = ParseString(ref reader, ch);
+					key = ParseString(ref reader, (char)ch);
 				}
 				else
 				{
@@ -376,7 +382,7 @@ namespace Gatebox.Variant.Parser
 
 
 		// 文字列パース
-		private string ParseString(ref Reader reader, char delimiter)
+		private string ParseString(ref Reader reader, int delimiter)
 		{
 			var starts = reader.Position;
 
@@ -439,7 +445,7 @@ namespace Gatebox.Variant.Parser
 			}
 
 			var sb = StringBuilderPool.Rent();
-			sb.Append(reader.Source.Slice(begin, escaped.Index).AsSpan());
+			sb.Append(reader.Source.Slice(begin, escaped.Index).ToString());
 
 			reader.SetPosition(escaped);
 
@@ -508,7 +514,7 @@ namespace Gatebox.Variant.Parser
 							reader.Advance(4);
 							break;
 						default:
-							sb.Append(ch);
+							sb.Append((char)ch);
 							break;
 					}
 
@@ -527,7 +533,7 @@ namespace Gatebox.Variant.Parser
 					}
 
 					// そこまでを追記
-					sb.Append(reader.Peek(p1, reader.Position.Index).AsSpan());
+					sb.Append(reader.Peek(p1, reader.Position.Index).ToString());
 
 					// エスケープならばもう一回
 					if (ch == '\\')
@@ -552,6 +558,7 @@ namespace Gatebox.Variant.Parser
 				StringBuilderPool.Return(sb);
 			}
 		}
+
 
 
 		// 失敗時
@@ -620,7 +627,7 @@ namespace Gatebox.Variant.Parser
 							reader.Advance();
 
 							// */ なら / を喰って終わり
-							if (ch == '*' && reader.Current == '/')
+							if (ch == '*' && reader.Next == '/')
 							{
 								reader.Advance();
 								break;
@@ -644,7 +651,7 @@ namespace Gatebox.Variant.Parser
 
 
 		// \\uXXXX 表記の Unicode 文字をパース、失敗したら '\0' を返す。
-		private static char ParseUnicode(StringView s)
+		private static char ParseUnicode(U8View s)
 		{
 			if (s.Length != 4)
 			{
@@ -662,7 +669,6 @@ namespace Gatebox.Variant.Parser
 
 			return (char)((i3 << 12) | (i2 << 8) | (i1 << 4) | i0);
 		}
-
 
 		// トークンっぽい部分を読む
 		private static void ReadToken(ref Reader reader)
@@ -712,6 +718,10 @@ namespace Gatebox.Variant.Parser
 			return (ch == '+' || ch == '-' || ch == '.' || ch == '_');
 		}
 
-
 	}
+
+
+
+
+
 }

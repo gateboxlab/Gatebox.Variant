@@ -33,7 +33,10 @@ namespace Gatebox.Variant
 			return JsonParser.CreateTemporary().Parse(source, throws);
 		}
 
-
+		public JVariant Parse(U8View source, bool throws = false)
+		{
+			return JsonParser.CreateTemporary().Parse(source, throws);
+		}
 
 		//==============================================================================
 		// operators

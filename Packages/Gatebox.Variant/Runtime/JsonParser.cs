@@ -85,6 +85,29 @@ namespace Gatebox.Variant
 		}
 
 
+		/// <summary>
+		/// UTF-8 文字列をパースして JVaraint として返す。
+		/// </summary>
+		/// <param name="source">パース対象の UTF-8 バイナリ</param>
+		/// <param name="throws">失敗時例外を投げるなら true</param>
+		/// <exception cref="VariantException">throws に true が指定され、パースに失敗したとき。</exception>
+		public JVariant Parse(U8View source, bool throws = false)
+		{
+			var parser_u8 = new Parser.ParserU8(m_StringCache);
+			try
+			{
+				return parser_u8.Parse(source);
+			}
+			catch (JsonParseException)
+			{
+				if (throws)
+				{
+					throw;
+				}
+				return new JVariant();
+			}
+		}
+
 
 	}
 }

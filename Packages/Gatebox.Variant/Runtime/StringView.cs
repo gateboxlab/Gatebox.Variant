@@ -6,15 +6,8 @@ using System.Diagnostics.CodeAnalysis;
 
 #nullable enable
 
-
-
-
-
-
-
 namespace Gatebox.Variant
 {
-
 
 	/// <summary>
 	/// 文字列への参照と、その文字列内の位置を持つ不変な値型
