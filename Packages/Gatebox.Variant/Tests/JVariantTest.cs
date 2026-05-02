@@ -98,11 +98,14 @@ namespace Gatebox.Variant
 			Assert.That(Parse("-Infinity").AsDouble(), Is.EqualTo(double.NegativeInfinity));
 		}
 
+
 		[Test]
 		public void ParseParsesObjectsArraysAndStringEscapes()
 		{
-			var parsed = Parse("{\"name\":\"Gatebox\",\"values\":[1,true,null],\"message\":\"line\\nquote:\\\" slash:\\/ backslash:\\\\\"}");
+			string source = "{\"name\":\"Gatebox\",\"values\":[1,true,null],\"message\":\"line\\nquote:\\\" slash:\\/ backslash:\\\\\"}";
+			var parsed = Parse(source);
 
+			
 			Assert.That(parsed.IsObject(), Is.True);
 			Assert.That(parsed["name"].AsString(), Is.EqualTo("Gatebox"));
 			Assert.That(parsed["values"].AsArray().Count, Is.EqualTo(3));

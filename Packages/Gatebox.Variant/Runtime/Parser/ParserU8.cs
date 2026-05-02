@@ -414,10 +414,7 @@ namespace Gatebox.Variant.Parser
 					{
 						escaped = reader.Position;
 					}
-					if (reader.Next == delimiter)
-					{
-						reader.Advance();
-					}
+					reader.Advance();
 				}
 
 				reader.Advance();
