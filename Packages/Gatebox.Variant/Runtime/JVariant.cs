@@ -27,11 +27,30 @@ namespace Gatebox.Variant
 		public const int DefaultMaxDepth = 64;
 
 
+		/// <summary>
+		/// Json 文字列をパースして JVariant を返す。
+		/// <para>
+		/// 多少パースはゆるくなっていて、厳密には JSON ではない文字列もパースします。
+		/// ・ オブジェクトのキーが " でくくられていなくとも良い。アルファベットのみの連続はキー名として扱われる。
+		/// ・ 数値の解釈が int.TryParse で行われる。無駄な先行 + などは JSON 的には ill-formed だが、パースされる。
+		/// ・ Object Array の末尾に , があって良い。
+		/// ・ /* */ // 形式のコメントがあってもよい。
+		/// これらが問題になることはないと思われますが、これを期待することは避けてください。</para>
+		/// <para>
+		/// デフォルトではパースに失敗した場合は Null を示す JVariant を返します。
+		/// 失敗を例外としたい場合は throws に true を指定してください。<see cref="VariantException"/> を投げます。</para>
+		/// </summary>
+		/// <param name="source">パースする JSON 文字列</param>
+		/// <param name="throws">パースエラー時に例外を投げるかどうか</param>
 		public JVariant Parse( StringView source, bool throws = false)
 		{
 			return JsonParser.CreateTemporary().Parse(source, throws);
 		}
 
+		/// <summary>
+		/// JTF-8 JSON 文字列をパースして JVariant を返す。
+		/// <see cref="Parse(StringView, bool)">StringView を受けるバージョン</see>を参照してください。
+		/// </summary>
 		public JVariant Parse(U8View source, bool throws = false)
 		{
 			return JsonParser.CreateTemporary().Parse(source, throws);
