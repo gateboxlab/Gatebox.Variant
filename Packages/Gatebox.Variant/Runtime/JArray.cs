@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using Gatebox.Variant.Internal;
 
-
 #nullable enable
 
 namespace Gatebox.Variant

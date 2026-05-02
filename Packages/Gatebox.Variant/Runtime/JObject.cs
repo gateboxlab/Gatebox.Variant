@@ -5,7 +5,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Gatebox.Variant.Internal;
 
-
 #nullable enable
 
 namespace Gatebox.Variant

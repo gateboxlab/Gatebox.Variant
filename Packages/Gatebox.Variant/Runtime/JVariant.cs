@@ -1,7 +1,6 @@
 ﻿using System;
 using Gatebox.Variant.Internal;
 
-
 #nullable enable
 
 namespace Gatebox.Variant

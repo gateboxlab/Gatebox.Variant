@@ -3,10 +3,6 @@ using System.Collections.Generic;
 using Gatebox.Variant.Extensions;
 using Gatebox.Variant.Internal;
 
-
-
-
-
 #nullable enable
 
 using SystemDebug = System.Diagnostics.Debug;
