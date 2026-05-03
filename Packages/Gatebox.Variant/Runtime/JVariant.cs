@@ -136,6 +136,19 @@ namespace Gatebox.Variant
 		public JVariant(string value) => m_Value = value;
 		public JVariant(JArray value) => m_Value = value;
 		public JVariant(JObject value) => m_Value = value;
+
+		/// <summary>
+		/// JValue を直接指定するコンストラクタ
+		/// <para>
+		/// 基本的に JValue は null 非許容ですが、
+		/// 実行時の挙動としてはこのコンストラクタは null を受け入れます。</para>
+		/// <para>
+		/// Null を指す JValue と null では意味的には同一視されるように設計していますが、
+		/// 厳密にはこのコンストラクタに null を渡すと内部の参照も null になり、参照先の JValue が共有されるものであるか否かが異なります。
+		/// （JVariant a があり、JVariant b = new(a.Value!) としたとき、a と b は同じ JValue を参照することが期待されるが null の時はそうではない。</para>
+		/// <para>
+		/// 現実的にこれが問題になることはないと思われますが、null を渡すことは避けるべきです</para>
+		/// </summary>
 		public JVariant(JValue value) => m_Value = value;
 
 
@@ -150,8 +163,8 @@ namespace Gatebox.Variant
 		/// null を返却しうるので注意してください。</para>
 		/// <para>
 		/// 厳密にいうと内部の参照が null であることと Null を指す JValue を参照していることは異なり、このプロパティはそれを示します。
-		/// ですが、JVariant 全体としてはその二者を同一視するように設計しています。
-		/// このプロパティ
+		/// JVariant 全体としてはその二者をできるだけ同一視するように設計していますが、
+		/// このプロパティに関しては null を返すことがあることに注意してください。
 		/// </para>
 		/// </summary>
 		public readonly JValue? Value => m_Value;
@@ -166,6 +179,10 @@ namespace Gatebox.Variant
 		/// </summary>
 		public int Count => m_Value?.Count ?? 0;
 		
+
+
+		public VariantType GetVariantType() => m_Value?.VariantType ?? VariantType.Null;
+
 		public readonly bool IsNull() => VariantType == VariantType.Null;
 		public readonly bool IsBoolean() => VariantType == VariantType.Boolean;
 		public readonly bool IsNumber() => VariantType == VariantType.Integer || VariantType == VariantType.Float;
@@ -257,6 +274,74 @@ namespace Gatebox.Variant
 			}
 			throw new VariantException($"Value is not an array: {this}");
 		}
+
+
+
+		public readonly T Require<T>()
+		{
+			// この関数 で null を返すことがあるのは T がNull許容値型の場合のみ。
+			if (IsNull())
+			{		
+				if ( Nullable.GetUnderlyingType(typeof(T)) != null)
+				{
+					return default(T)!;
+				}
+				throw new VariantException($"Value is null, but {typeof(T)} is not a nullable type: {this}");
+			}
+
+			// 定型変換
+			if (VariantConverter.ConvertVariantFixedStrict(this, typeof(T), out object? x))
+			{
+				if( x == null )
+				{
+					throw new VariantException($"Value cannot be converted to {typeof(T)}: {this}");
+				}
+				return (T)x!;
+			}
+
+
+
+			// TODO : 実装
+			throw new NotImplementedException("JVariant.Require<T>() is not implemented yet.");
+		}
+
+
+		/// <summary>
+		/// 任意型への変換
+		/// <para>
+		/// JVariant を任意の型 T に変換して返します。
+		/// <para>
+		/// JSON の null は null を返すのが正解であるため (少々面倒ではありますが) null 許容型でない T に対しても null を返すことがあります。</para>
+		/// <para>
+		/// 変換方法がわからないとき、デフォルトでは null もしくは T のデフォルト値を返します、
+		/// 例外投げるべき時は 引数 throws に true を指定してください（VariantException を投げます。）
+		/// ただし、変換方法はカスタマイズすることが可能であり、カスタマイズ先で例外があればそれをそのまま投げるため、
+		/// throws に false を指定しても例外が投げられないということを示すものではありません。</para>
+		/// 
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="throws"></param>
+		/// <returns></returns>
+		public readonly T? As<T>( bool throws = false) 
+		{
+			// null だったら default.
+			if (IsNull())
+			{
+				return default;
+			}
+
+			// 定型変換
+			if( VariantConverter.ConvertVariantFixed(this, typeof(T), out object? x))
+			{
+				return (T?)x;
+			}
+			
+
+
+			// TODO : 実装
+			return default;
+		}
+		
 
 
 		/// <summary>

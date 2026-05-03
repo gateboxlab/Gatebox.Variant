@@ -1,7 +1,11 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using NUnit.Framework;
+
+#nullable enable
 
 namespace Gatebox.Variant
 {
@@ -203,6 +207,32 @@ namespace Gatebox.Variant
 			Assert.That(parsed.IsString(), Is.True);
 			Assert.That(parsed.AsString().Length, Is.EqualTo(1));
 			Assert.That(parsed.AsString()[0], Is.EqualTo('\0'));
+		}
+
+
+		
+
+		[Test]
+		public void AsFixedType() 
+		{
+			var x = new JObject()
+			{
+				["number"] = 123,
+				["string"] = "abc",
+				["boolean"] = true,
+				["null"] = null!,
+				
+				["array"] = new JArray { 1, 2, 3 },
+				["object"] = new JObject { ["key"] = "value" },
+				["invalid_number"] = double.NaN,
+			};
+			
+			Assert.That(x["number"].AsVariant().As<int>(), Is.EqualTo(123));
+
+
+
+
+
 		}
 	}
 }

@@ -139,6 +139,17 @@ namespace Gatebox.Variant
 			}
 			return new JArray();
 		}
+
+		public static JVariant AsVariant(this JValue? v)
+		{
+			return new JVariant(v!);
+		}
+
+		public static T? As<T>(this JValue? value)
+		{
+			return value.AsVariant().As<T>();
+		}
+
 	}
 
 
@@ -296,7 +307,12 @@ namespace Gatebox.Variant
 				m_Type = VariantType.Null;
 				return;
 			}
-			Assign(v.AsVariant());
+			Assign(v.AsVariant().Value!);
+		}
+
+		public JValue(JVariant variant)
+		{
+			Assign(variant.Value!);
 		}
 
 		/// <summary>
@@ -1190,6 +1206,8 @@ namespace Gatebox.Variant
 			return false;
 		}
 
+
+		
 
 
 		internal void ConvertToJson(ref StringifyContext context)
