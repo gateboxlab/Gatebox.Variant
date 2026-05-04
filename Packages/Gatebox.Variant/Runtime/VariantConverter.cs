@@ -492,6 +492,12 @@ namespace Gatebox.Variant
 				throw new VariantException($"{type.Name} requires a no parameter constructor.");
 			}
 
+			var traitTargetType = GetTraitTargetType(type);
+			if (traitTargetType == null)
+			{
+				throw new VariantException($"{type.Name} must inherit from {nameof(ConvertTrait)}<T>.");
+			}
+
 			if (type.IsGenericTypeDefinition)
 			{
 				// Generic type であれば
@@ -504,6 +510,10 @@ namespace Gatebox.Variant
 				if (!CanConcretizeWithSameArguments(type, targetType))
 				{
 					throw new VariantException($"The generic type definition {type.Name} does not match {targetType.Name}. The type arguments and constraints must be equivalent.");
+				}
+				if (!MatchesOpenTargetType(traitTargetType, type, targetType))
+				{
+					throw new VariantException($"{type.Name} converts {traitTargetType}, not {targetType}.");
 				}
 
 				// ここでは(まだ型が開いているので)具体的にはならんのだが、少なくとも abstract, interface であってはならない。
@@ -521,7 +531,55 @@ namespace Gatebox.Variant
 				{
 					throw new VariantException($"{type.Name} must be a concrete type.");
 				}
+
+				if (traitTargetType != targetType)
+				{
+					throw new VariantException($"{type.Name} converts {traitTargetType}, not {targetType}.");
+				}
 			}
+		}
+
+		private static Type? GetTraitTargetType(Type type)
+		{
+			for (var current = type; current != null; current = current.BaseType)
+			{
+				if (current.IsGenericType && current.GetGenericTypeDefinition() == typeof(ConvertTrait<>))
+				{
+					return current.GetGenericArguments()[0];
+				}
+			}
+
+			return null;
+		}
+
+		private static bool MatchesOpenTargetType(Type traitTargetType, Type traitType, Type targetType)
+		{
+			if (!traitTargetType.IsGenericType)
+			{
+				return false;
+			}
+
+			if (traitTargetType.GetGenericTypeDefinition() != targetType)
+			{
+				return false;
+			}
+
+			var traitArgs = traitType.GetGenericArguments();
+			var targetArgs = traitTargetType.GetGenericArguments();
+			if (traitArgs.Length != targetArgs.Length)
+			{
+				return false;
+			}
+
+			for (int i = 0; i < traitArgs.Length; i++)
+			{
+				if (targetArgs[i] != traitArgs[i])
+				{
+					return false;
+				}
+			}
+
+			return true;
 		}
 
 		// 2つのジェネリック型定義が同じ型引数で具体化できるかどうかを判定する
@@ -640,7 +698,7 @@ namespace Gatebox.Variant
 
 			lock (m_Lock)
 			{
-				if (overwrite && m_TraitDefinitions.ContainsKey(target))
+				if (!overwrite && m_TraitDefinitions.ContainsKey(target))
 				{
 					throw new VariantException($"Trait for {target.Name} already exists. Set overwrite to true to overwrite it.");
 				}

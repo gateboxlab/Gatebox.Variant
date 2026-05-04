@@ -37,6 +37,19 @@ namespace Gatebox.Variant
 				return new JArray();
 			}
 		}
+
+		public class AlternativeDateTimeConvertTrait : ConvertTrait<DateTime>
+		{
+			public override DateTime ConvertVariant(JVariant variant)
+			{
+				return DateTime.UnixEpoch;
+			}
+
+			public override JVariant CreateVariant(DateTime v)
+			{
+				return new JValue("alt");
+			}
+		}
 	}
 
 
@@ -47,12 +60,6 @@ namespace Gatebox.Variant
 		[Test]
 		public void CustomConverter()
 		{
-			var x = new DateTimeConvertTrait();
-			new CustomArrayTrait<int>();
-
-			
-
-
 			var converter = new VariantConverter();
 			converter.RegisterTraitDefinition<DateTime, Test.DateTimeConvertTrait>();
 			converter.RegisterTraitDefinition(typeof(List<>), typeof(Test.CustomArrayTrait<>));
@@ -62,7 +69,33 @@ namespace Gatebox.Variant
 
 			trait = converter.GetTrait(typeof(List<int>));
 			Assert.That(trait, Is.InstanceOf<Test.CustomArrayTrait<int>>());
+		}
 
+		[Test]
+		public void RegisterTraitDefinition_RequiresOverwriteToReplace()
+		{
+			var converter = new VariantConverter();
+			converter.RegisterTraitDefinition<DateTime, Test.DateTimeConvertTrait>();
+
+			Assert.Throws<VariantException>(() =>
+				converter.RegisterTraitDefinition<DateTime, Test.AlternativeDateTimeConvertTrait>());
+
+			converter.RegisterTraitDefinition<DateTime, Test.AlternativeDateTimeConvertTrait>(overwrite: true);
+
+			var trait = converter.GetTrait(typeof(DateTime));
+			Assert.That(trait, Is.InstanceOf<Test.AlternativeDateTimeConvertTrait>());
+		}
+
+		[Test]
+		public void RegisterTraitDefinition_RejectsMismatchedTargetType()
+		{
+			var converter = new VariantConverter();
+
+			Assert.Throws<VariantException>(() =>
+				converter.RegisterTraitDefinition(typeof(int), typeof(Test.DateTimeConvertTrait)));
+
+			Assert.Throws<VariantException>(() =>
+				converter.RegisterTraitDefinition(typeof(List<>), typeof(Test.DateTimeConvertTrait)));
 		}
 	}
 }
