@@ -19,8 +19,6 @@ namespace Gatebox.Variant
 		public static VariantConverter Default => s_Default.Value;
 
 
-		
-
 		/// <summary>
 		/// 普通に考えて「そりゃ無理やろ」っていう型
 		/// <para>
@@ -799,6 +797,58 @@ namespace Gatebox.Variant
 			}
 		}
 
+		/// <summary>
+		/// 任意型の値を JVariant に変換する。
+		/// </summary>
+		public JVariant CreateVariant<T>( T t)
+		{
+			if (t is null)
+			{
+				return new JVariant();
+			}
+
+			var v = CreateVariantFixed(t!);
+			if (v is not null)
+			{
+				return v;
+			}
+
+			var context = ConvertContext.Acquire();
+			try
+			{
+				context.PushConverter(this);
+				return CreateVariantFrom(t, typeof(T));
+			}
+			finally
+			{
+				context.PopConverter();
+				context.Release();
+			}
+		}
+
+
+		/// <summary>
+		/// 型からその変換を行う ConvertTrait を取得する。
+		/// </summary>
+		public ConvertTrait? GetTrait(Type type)
+		{
+			lock (m_Lock)
+			{
+				if (m_Traits.TryGetValue(type, out var trait))
+				{
+					return trait;
+				}
+
+				trait = CreateCustomeTrait(type);
+				trait ??= CreateTrait(type);
+				m_Traits[type] = trait;
+
+				return trait;
+			}
+		}
+
+
+
 		// ConvertTo の 内部実装。プリミティブへの変換はここに来る時点で完了していて、
 		// ここでは構造を持つ方への変換を行う。
 		internal T? ConvetrtVariantTo<T>(JVariant v)
@@ -823,22 +873,26 @@ namespace Gatebox.Variant
 			return (T?)trait.FromVariant(v);
 		}
 
-		public ConvertTrait? GetTrait(Type type)
-		{
-			lock (m_Lock)
-			{
-				if (m_Traits.TryGetValue(type, out var trait))
-				{
-					return trait;
-				}
 
-				trait = CreateCustomeTrait(type);
-				trait ??= CreateTrait(type);
-				m_Traits[type] = trait;
-				
-				return trait;
+		internal JVariant CreateVariantFrom(object? v, Type t)
+		{
+			if( v == null ){
+				return new JVariant();
 			}
+
+			if (IsUnsupported(t))
+			{
+				throw new VariantConvertException($"Conversion to type {t} is not supported.");
+			}
+
+			var trait = GetTrait(t);
+			if (trait == null)
+			{
+				throw new VariantConvertException($"Unable to convert type {t}.");
+			}
+			return trait.ToVariant(v!);
 		}
+
 
 		private ConvertTrait? CreateCustomeTrait( Type type)
 		{
@@ -926,10 +980,9 @@ namespace Gatebox.Variant
 				return Activator.CreateInstance(traitType) as ConvertTrait;
 			}
 
-			// TODO : リフレクションで対応するパターン等を追加
-
-
-			return null;
+			
+			var dynamicTraitType = typeof(DynamicConvertTrait<>).MakeGenericType(type);
+			return Activator.CreateInstance(dynamicTraitType) as ConvertTrait;
 		}
 	}
 }

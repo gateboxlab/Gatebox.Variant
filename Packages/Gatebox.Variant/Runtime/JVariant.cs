@@ -59,12 +59,66 @@ namespace Gatebox.Variant
 		/// <summary>
 		/// 任意型からの生成
 		/// </summary>
-		/// <param name="t"></param>
-		/// <returns></returns>
-		/// <exception cref="NotImplementedException"></exception>
-		public static JVariant Create(object? t = null)
+		public static JVariant Create()
 		{
-			throw new NotImplementedException();
+			return new JVariant();
+		}
+
+		/// <summary>
+		/// 任意型からの生成
+		/// </summary>
+		public static JVariant Create<T>(T t)
+		{
+			if (t is null)
+			{
+				return new JVariant();
+			}
+
+			var v = VariantConverter.CreateVariantFixed(t);
+			if (v is not null)
+			{
+				return v;
+			}
+
+			var context = ConvertContext.Acquire();
+			try
+			{
+				return context.Converter.CreateVariantFrom(t, typeof(T));
+			}
+			finally
+			{
+				context.Release();
+			}
+		}
+
+		/// <summary>
+		/// 任意型からの生成。
+		/// <para>
+		/// Create との違いは実行時の型を利用して変換することです。
+		/// </para>
+		/// </summary>
+		public static JVariant CreateDynamic(object? t)
+		{
+			if (t is null)
+			{
+				return new JVariant();
+			}
+			var v = VariantConverter.CreateVariantFixed(t);
+			if (v is not null)
+			{
+				return v;
+			}
+
+			var context = ConvertContext.Acquire();
+			try
+			{
+				return context.Converter.CreateVariantFrom(t, t.GetType());
+			}
+			finally
+			{
+				context.Release();
+			}
+
 		}
 
 
