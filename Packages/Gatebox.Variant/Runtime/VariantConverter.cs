@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -15,14 +16,12 @@ namespace Gatebox.Variant
 		// static members
 		//==============================================================================
 
-		private static Lazy<VariantConverter> s_Default = new Lazy<VariantConverter>(CreateDefault);
+		private static readonly Lazy<VariantConverter> s_Default = new (()=> new VariantConverter(collect_definitions:true));
 
 		public static VariantConverter Default => s_Default.Value;
 
 
-		private static VariantConverter CreateDefault(){
-			return new VariantConverter();
-		}
+		
 
 		/// <summary>
 		/// 普通に考えて「そりゃ無理やろ」っていう型
@@ -421,10 +420,238 @@ namespace Gatebox.Variant
 		}
 
 
+		
+
+		// ConvertTraitAttribute が付与されたクラスを収集する。
+		private static Dictionary<Type, Type> CollectTraitsDefinitions()
+		{
+			var ret = new Dictionary<Type, Type>();
+
+			// ConvertTraitAttribute つきクラスを収集
+			var types = CollectTypesWithAttribute(typeof(ConvertTraitAttribute));
+
+			foreach (var type in types)
+			{
+				// 変換対象の型を取得
+				var attr = type.GetCustomAttributes().FirstOrDefault(attr => attr is ConvertTraitAttribute) as ConvertTraitAttribute;
+				var targetType = attr!.TargetType;
+
+				// ConvertTrait を継承しているはず
+				if (!type.IsSubclassOf(typeof(ConvertTrait)))
+				{
+					throw new VariantException($"Failed to analyze {type.Name}. Classes with the {nameof(ConvertTraitAttribute)} must inherit from {nameof(ConvertTrait)}.");
+				}
+
+				if (ret.ContainsKey(targetType))
+				{
+					throw new VariantException($"${nameof(ConvertTrait)} for {targetType.Name} duplicated.");
+				}
+
+				ChackTraitType(type, targetType);
+				ret[targetType] = type;
+			}
+			return ret;
+		}
+
+		// 指定された属性を持つクラス定義をアプリケーションドメイン全体から集める。
+		private static List<Type> CollectTypesWithAttribute(Type attr)
+		{
+			var ret = new List<Type>();
+			foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+			{
+				foreach (var type in assembly.GetTypes())
+				{
+					if (Attribute.IsDefined(type, attr))
+					{
+						ret.Add(type);
+					}
+				}
+			}
+			return ret;
+		}
+
+		// type が targetType に対して ConvertTrait として利用できるかどうかを判定する
+		// だめなときは例外を投げる。
+		private static void ChackTraitType(Type type, Type targetType)
+		{
+			// ConvertTrait を継承しているはず
+			if (!type.IsSubclassOf(typeof(ConvertTrait)))
+			{
+				throw new VariantException($"{type.Name} must inherit from ${nameof(ConvertTrait)}.");
+			}
+
+			// 部分的未解決ジェネリックは対応できない。
+			if (type.IsGenericType && type.ContainsGenericParameters && (!type.IsGenericTypeDefinition))
+			{
+				throw new VariantException($"{type.Name}  has partially unresolved type parameters. cannot be used as ${nameof(ConvertTrait)}");
+			}
+
+			// 構築可能でなければならない。
+			if (!type.IsDefaultConstructible())
+			{
+				throw new VariantException($"{type.Name} requires a no parameter constructor.");
+			}
+
+			if (type.IsGenericTypeDefinition)
+			{
+				// Generic type であれば
+				// target<T> と definition<T> が対応可能でなければならない。
+			
+				if (!targetType.IsGenericTypeDefinition)
+				{
+					throw new VariantException($"The generic type definition {type.Name} does not match {targetType.Name}. ");
+				}
+				if (!CanConcretizeWithSameArguments(type, targetType))
+				{
+					throw new VariantException($"The generic type definition {type.Name} does not match {targetType.Name}. The type arguments and constraints must be equivalent.");
+				}
+
+				// ここでは(まだ型が開いているので)具体的にはならんのだが、少なくとも abstract, interface であってはならない。
+				if (type.IsAbstract || type.IsInterface)
+				{
+					throw new VariantException($"{type.Name} must be a concrete type.");
+				}
+
+			}
+			else
+			{
+				// Generic Type でない場合は具体的型でなければならない。
+
+				if ( ! type.IsConcrete() )
+				{
+					throw new VariantException($"{type.Name} must be a concrete type.");
+				}
+			}
+		}
+
+		// 2つのジェネリック型定義が同じ型引数で具体化できるかどうかを判定する
+		// type2 のほうが多少厳しいのは許される。（つまり [type1 は type2 と同じ型引数で具体化できるか] を返す。）
+		private static bool CanConcretizeWithSameArguments(Type type1, Type type2)
+		{
+			if (!type1.IsGenericTypeDefinition || !type2.IsGenericTypeDefinition)
+			{
+				return false;
+			}
+
+			var args1 = type1.GetGenericArguments();
+			var args2 = type2.GetGenericArguments();
+
+			if (args1.Length != args2.Length)
+			{
+				return false;
+			}
+
+			for (int i = 0; i < args1.Length; i++)
+			{
+				if (args1[i].GenericParameterAttributes != args2[i].GenericParameterAttributes)
+				{
+					return false;
+				}
+
+				var constraint1 = args1[i].GetGenericParameterConstraints();
+				var constraint2 = args2[i].GetGenericParameterConstraints();
+
+				foreach (var c1 in constraint1)
+				{
+					if (!constraint2.Contains(c1))
+					{
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+
 
 		//==============================================================================
 		// instance members
 		//==============================================================================
+
+		private readonly object m_Lock = new();
+		private readonly Dictionary<Type, ConvertTrait?> m_Traits = new();
+		private Dictionary<Type,Type> m_TraitDefinitions;
+		
+		/// <summary>
+		/// コンストラクタ
+		/// </summary>
+		public VariantConverter( bool collect_definitions = false)
+		{
+			if (collect_definitions)
+			{
+				m_TraitDefinitions = CollectTraitsDefinitions();
+			}
+			else
+			{
+				m_TraitDefinitions = new Dictionary<Type, Type>();
+			}
+		}
+
+
+		/// <summary>
+		/// 全アセンブリから <see cref="ConvertTraitAttribute"/> が付与されたクラスを収集し、変換定義を更新します。
+		/// <para>
+		/// <see cref="Default"/> インスタンスは生成時にこのメソッドを呼び出して初期化されています。
+		/// 自分で <see cref="VariantConverter"/> を作成したときは、このメソッドを呼び出して変換定義を収集する必要があります。
+		/// </para>
+		/// </summary>
+		public void CollectionMarkedTraitDefinitions()	
+		{
+			var defs = CollectTraitsDefinitions();
+
+			lock (m_Lock) 
+			{
+				m_Traits.Clear();
+
+				if( m_TraitDefinitions.Count == 0 )
+				{
+					m_TraitDefinitions = defs;
+				}
+				else
+				{
+					foreach (var def in defs)
+					{
+						m_TraitDefinitions[def.Key] = def.Value;
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Trait 定義を追加。
+		/// <para>
+		/// この型はこの型を通して変換を行う、ということを定義します。</para>
+		/// <para>
+		/// 基本的には <see cref="ConvertTraitAttribute"/> を付与して自動的に集めることを想定しています。
+		/// 同じ型を場合によってを違うロジックで変換したい、
+		/// あるいは、変換方法がアプリケーション依存で共有コードとして表現されづらい、のような理由がある場合に利用してください。
+		/// </para>
+		/// </summary>
+		public void RegisterTraitDefinition<TARGET, TRAIT>( bool overwrite = false) where TRAIT : ConvertTrait
+		{
+			RegisterTraitDefinition(typeof(TARGET), typeof(TRAIT), overwrite);
+		}
+
+		/// <summary>
+		/// Trait 定義を追加。
+		/// </summary>
+		public void RegisterTraitDefinition(Type target, Type trait, bool overwrite = false)
+		{
+			ChackTraitType(trait, target);
+
+			lock (m_Lock)
+			{
+				if (overwrite && m_TraitDefinitions.ContainsKey(target))
+				{
+					throw new VariantException($"Trait for {target.Name} already exists. Set overwrite to true to overwrite it.");
+				}
+				m_TraitDefinitions[target] = trait;
+
+				// これは消しすぎなのだけど、マッチするものだけを消すのは辛い。
+				// 何度も定義を追加するようなことはない（最初に一回定義追加したら後は使うだけ）と考える。
+				m_Traits.Clear();
+			}
+		}
+
 
 		/// <summary>
 		/// JVariant を指定の型 T に変換する。
@@ -540,15 +767,46 @@ namespace Gatebox.Variant
 			return (T?)trait.FromVariant(v);
 		}
 
-		private ConvertTrait? GetTrait(Type type)
+		public ConvertTrait? GetTrait(Type type)
 		{
-			// TODO : 事前登録の対応
-			// TODO : キャッシュの対応
+			lock (m_Lock)
+			{
+				if (m_Traits.TryGetValue(type, out var trait))
+				{
+					return trait;
+				}
 
-			return CreateTrait(type);
+				trait = CreateCustomeTrait(type);
+				trait ??= CreateTrait(type);
+				m_Traits[type] = trait;
+				
+				return trait;
+			}
 		}
 
+		private ConvertTrait? CreateCustomeTrait( Type type)
+		{
+			Type? trait = null;
 
+			// そのまま Definitions に入っている場合
+			if( m_TraitDefinitions.TryGetValue(type, out trait))
+			{
+				return Activator.CreateInstance(trait) as ConvertTrait;
+			}
+
+			// ジェネリック型定義でマッチするものがある場合
+			if(type.IsGenericType)
+			{
+				var genericTypeDefinition = type.GetGenericTypeDefinition();
+				if(m_TraitDefinitions.TryGetValue(genericTypeDefinition, out var generic_trait))
+				{
+					trait = generic_trait.MakeGenericType(type.GetGenericArguments());
+					return Activator.CreateInstance(trait) as ConvertTrait;
+				}
+			}
+
+			return null;
+		}
 
 
 		// 型に対して、その型の変換をおこなう ConvertTrait を生成して返す。

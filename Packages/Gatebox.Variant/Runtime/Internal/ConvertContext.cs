@@ -7,6 +7,21 @@ using System.Threading;
 
 namespace Gatebox.Variant.Internal
 {
+
+	/// <summary>
+	/// JVaraint の変換中のコンテキスト。
+	/// <para>
+	/// これは <see cref="JVariant"/> <see cref="VariantConverter"/> の内部で使われるものです。</para>
+	/// <para>
+	/// 変換の仕方は VariantConverter が受け持つ一方、
+	/// 変換の仕方を ConvertTrait を経由して外部に任せることがあり、
+	/// 外部から指定されたコードを通して複雑な経路を辿って再帰的に変換が呼ばれることがあります。</para>
+	/// <para>
+	/// この時、変換の仕方を VariantConverter が受け持つのであれば、再帰的に呼ばれた変換も同じ VariantConverter が受け持つべきです。</para>
+	/// <para>
+	/// このような理由から、最初に変換を開始した時点で ConvertContext を生成、 ThreadLocal で管理することとします。
+	/// これにより深いネストによる循環参照の疑いのチェックや、 VariantConverter の引き継ぎを行っています。</para>
+	/// </summary>
 	internal class ConvertContext
 	{
 		//==============================================================================

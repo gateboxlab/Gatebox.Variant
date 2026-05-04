@@ -615,9 +615,6 @@ namespace Gatebox.Variant
 			return m_Value?.ToString() ?? "null";
 		}
 
-		/// <inheritdoc/>
-		/// 
-
 		/// <summary>
 		/// 値を返す。
 		/// <para>

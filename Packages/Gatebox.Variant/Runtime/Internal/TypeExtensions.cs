@@ -21,7 +21,7 @@ namespace Gatebox.Variant.Internal
 		/// </summary>
 		public static bool IsDefaultConstructible(this Type type)
 		{
-			return type.IsConcrete() && type.GetConstructor(Type.EmptyTypes) != null;
+			return type.GetConstructor(Type.EmptyTypes) != null;
 		}
 	}
 }
