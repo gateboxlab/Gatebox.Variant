@@ -71,7 +71,7 @@ namespace Gatebox.Variant
 			Assert.That(part.Length, Is.EqualTo(3));
 			Assert.That(part.ToString(), Is.EqualTo("123"));
 
-			var empty = new StringView(null);
+			var empty = new StringView(null!);
 			Assert.That(empty.IsEmpty(), Is.True);
 			Assert.That(empty.ToString(), Is.EqualTo(string.Empty));
 		}

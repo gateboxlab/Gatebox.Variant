@@ -56,11 +56,25 @@ namespace Gatebox.Variant
 			return JsonParser.CreateTemporary().Parse(source, throws);
 		}
 
+		/// <summary>
+		/// 任意型からの生成
+		/// </summary>
+		/// <param name="t"></param>
+		/// <returns></returns>
+		/// <exception cref="NotImplementedException"></exception>
+		public static JVariant Create(object? t = null)
+		{
+			throw new NotImplementedException();
+		}
+
+
 		//==============================================================================
 		// operators
 		//==============================================================================
 
 		public static implicit operator JVariant(JValue v) => new (v);
+		public static implicit operator JVariant(JObject v) => new(v);
+		public static implicit operator JVariant(JArray v) => new(v);
 
 		/// <summary>
 		/// bool への変換
@@ -277,52 +291,47 @@ namespace Gatebox.Variant
 
 
 
+		/// <summary>
+		/// 任意型への変換
+		/// <para>
+		/// 任意の具体型 T に変換して返します。変換できない場合は VariantException を投げます。</para>
+		/// <para>
+		/// JVariant は null を持つことがあるので、 null を返すことが正解であることもあるのですが、
+		/// このメソッドは null 非許容であり、参照型に対して null を返すことはありません。VariantException を投げます。
+		/// （null を返すことがあるのは T に Null 許容の値型を指定した場合のみ）</para>
+		/// <para>
+		/// T は 具体型である必要があります。抽象クラスやインターフェースは指定できません。
+		/// （意味的にはできてもいいはずですが、実装上の対応していません。IList で十分としても List を指定してください。）</para>
+		/// </summary>
 		public readonly T Require<T>()
 		{
-			// この関数 で null を返すことがあるのは T がNull許容値型の場合のみ。
-			if (IsNull())
-			{		
-				if ( Nullable.GetUnderlyingType(typeof(T)) != null)
-				{
-					return default(T)!;
-				}
-				throw new VariantException($"Value is null, but {typeof(T)} is not a nullable type: {this}");
-			}
-
-			// 定型変換
-			if (VariantConverter.ConvertVariantFixedStrict(this, typeof(T), out object? x))
+			var context = ConvertContext.Acquire();
+			try
 			{
-				if( x == null )
-				{
-					throw new VariantException($"Value cannot be converted to {typeof(T)}: {this}");
-				}
-				return (T)x!;
+				return context.Converter.ConvertToStrict<T>(this);
 			}
-
-
-
-			// TODO : 実装
-			throw new NotImplementedException("JVariant.Require<T>() is not implemented yet.");
+			finally
+			{
+				context.Release();
+			}
 		}
 
 
 		/// <summary>
 		/// 任意型への変換
 		/// <para>
-		/// JVariant を任意の型 T に変換して返します。
+		/// JVariant を任意の具体型 T に変換して返します。</para>
 		/// <para>
-		/// JSON の null は null を返すのが正解であるため (少々面倒ではありますが) null 許容型でない T に対しても null を返すことがあります。</para>
+		/// null 許容型でない T に対しても null を返すことがあります。
+		/// (null を返すことが正解であることがある)</para>
 		/// <para>
-		/// 変換方法がわからないとき、デフォルトでは null もしくは T のデフォルト値を返します、
-		/// 例外投げるべき時は 引数 throws に true を指定してください（VariantException を投げます。）
-		/// ただし、変換方法はカスタマイズすることが可能であり、カスタマイズ先で例外があればそれをそのまま投げるため、
-		/// throws に false を指定しても例外が投げられないということを示すものではありません。</para>
-		/// 
+		/// T は 具体型である必要があります。抽象クラスやインターフェースは指定できません。
+		/// （意味的にはできてもいいはずですが、実装上の対応していません。IList で十分としても List を指定してください。）</para>
+		/// <para>
+		/// 変換方法がわからないとき、デフォルトでは null もしくは T のデフォルト値を返します。
+		/// 例外を投げるべき時は throws に true を指定してください。</para>
 		/// </summary>
-		/// <typeparam name="T"></typeparam>
-		/// <param name="throws"></param>
-		/// <returns></returns>
-		public readonly T? As<T>( bool throws = false) 
+		public readonly T? As<T>(bool throws = false) 
 		{
 			// null だったら default.
 			if (IsNull())
@@ -330,16 +339,34 @@ namespace Gatebox.Variant
 				return default;
 			}
 
-			// 定型変換
-			if( VariantConverter.ConvertVariantFixed(this, typeof(T), out object? x))
+			try
 			{
-				return (T?)x;
+				// 定型変換
+				if (VariantConverter.ConvertVariantFixed(this, typeof(T), out object? x))
+				{
+					return (T?)x;
+				}
+
+				// 明確に変換不能な型
+				if (VariantConverter.IsUnsupported(typeof(T)))
+				{
+					throw new VariantConvertException($"Conversion to type {typeof(T)} is not supported.");
+				}
+
+				var context = ConvertContext.Acquire();
+				try
+				{
+					return context.Converter.ConvetrtVariantTo<T>(this);
+				}
+				finally
+				{
+					context.Release();
+				}
 			}
-			
-
-
-			// TODO : 実装
-			return default;
+			catch (VariantConvertException) when (!throws)
+			{
+				return default;
+			}
 		}
 		
 
@@ -588,6 +615,8 @@ namespace Gatebox.Variant
 			return m_Value?.ToString() ?? "null";
 		}
 
+		/// <inheritdoc/>
+		/// 
 
 		/// <summary>
 		/// 値を返す。

@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Text;
+using Gatebox.Variant.Internal;
 
 #nullable enable
 
@@ -11,6 +14,65 @@ namespace Gatebox.Variant
 		//==============================================================================
 		// static members
 		//==============================================================================
+
+		private static Lazy<VariantConverter> s_Default = new Lazy<VariantConverter>(CreateDefault);
+
+		public static VariantConverter Default => s_Default.Value;
+
+
+		private static VariantConverter CreateDefault(){
+			return new VariantConverter();
+		}
+
+		/// <summary>
+		/// 普通に考えて「そりゃ無理やろ」っていう型
+		/// <para>
+		/// 二重否定っぽいですが、これが false を返したからといって変換できるわけではないです。
+		/// 少なくともこの関数が true を返す型は変換できない、ということです。
+		/// </para>
+		/// </summary>
+		public static bool IsUnsupported( Type type)
+		{
+			// 処理そのものを表すもの、
+			// ポインタ、
+			// リフレクション関係、
+			// ref struct などは一旦無理ってことにする。
+			// いろいろやっていって増やしていくとかしかないんだと思う。
+
+
+			if (type == null)
+			{
+				return true;
+			}
+			
+			if ( typeof(Delegate).IsAssignableFrom(type))
+			{
+				return true;
+			}
+
+			if (type.IsPointer)
+			{
+				return true;
+			}
+
+			if (type == typeof(Type))
+			{
+				return true;
+			}
+			if (typeof(MemberInfo).IsAssignableFrom(type))
+			{
+				return true;
+			}
+
+			if (type.IsByRefLike)
+			{
+				return true;
+			}
+
+			return false;
+		}
+
+
 
 		/// <summary>
 		/// プリミティブ、JVaraint 関連の型を JVariant に変換する。
@@ -359,5 +421,201 @@ namespace Gatebox.Variant
 		}
 
 
+
+		//==============================================================================
+		// instance members
+		//==============================================================================
+
+		/// <summary>
+		/// JVariant を指定の型 T に変換する。
+		/// <para>
+		/// このメソッドはできるだけ厳密に型変換を行い、値が型 T と互換性がない場合は例外をスローします。
+		/// 型制約なく T を受け、Null 非許容の T を返します。
+		/// そのため、JVariant が null の場合も例外を投げます。
+		/// 値型の場合は、T 自体を null 許容とすることができるのでその場合のみ null を返します。
+		/// (これは C# の Nullable の仕様に基づくものです。? の意味が class と struct で異なるのに、両者を一つのジェネリクスで受けられてしまう。)
+		/// </para>
+		/// </summary>
+		public T ConvertToStrict<T>( JVariant v)
+		{
+			// この関数 で null を返すことがあるのは T がNull許容値型の場合のみ。
+			if (v.IsNull())
+			{
+				if (Nullable.GetUnderlyingType(typeof(T)) != null)
+				{
+					return default(T)!;
+				}
+				throw new VariantConvertException($"Value is null, but {typeof(T)} is not a nullable type: {this}");
+			}
+
+			// 定型変換
+			if (ConvertVariantFixedStrict(v, typeof(T), out object? x))
+			{
+				if (x == null)
+				{
+					throw new VariantConvertException($"Value cannot be converted to {typeof(T)}: {v}");
+				}
+				return (T)x!;
+			}
+
+			// Context に 自分を push してから内部実装を呼ぶ。
+			// これで再帰的に JVariant.As<> が呼ばれたき、おなじ Converter で変換される。
+			var context = ConvertContext.Acquire();
+			context.PushConverter(this);
+			try
+			{
+				T? result = ConvetrtVariantTo<T>(v);
+				return result ?? throw new VariantConvertException($"Value cannot be converted to {typeof(T)}: {v}");
+			}
+			finally
+			{
+				context.PopConverter();
+				context.Release();
+			}
+		}
+
+
+	
+		
+		/// <summary>
+		/// JVariant を指定の型 T に変換する。
+		/// <para>
+		/// このメソッドはできるだけ広く解釈して型変換を行い、値が null である場合は null を返します。</para>
+		/// <para>
+		/// 変換できない場合は VariantException を投げます。</para>
+		/// </summary>
+		/// <typeparam name="T">変換先の型。具体的な型である必要があります。</typeparam>
+		/// <param name="v">変換対象</param>
+		public T? ConvertTo<T>(JVariant v)
+		{
+			// null だったら default.
+			if (v.IsNull())
+			{
+				return default;
+			}
+
+			// 定型変換
+			if (ConvertVariantFixed(v, typeof(T), out object? x))
+			{
+				return (T?)x;
+			}
+
+			
+			// Context に 自分を push してから内部実装を呼ぶ。
+			// これで再帰的に JVariant.As<> が呼ばれたき、おなじ Converter で変換される。
+			var context = ConvertContext.Acquire();
+			context.PushConverter(this);
+			try
+			{
+				return ConvetrtVariantTo<T>(v);
+			}
+			finally
+			{
+				context.PopConverter();
+				context.Release();
+			}
+		}
+
+		// ConvertTo の 内部実装。プリミティブへの変換はここに来る時点で完了していて、
+		// ここでは構造を持つ方への変換を行う。
+		internal T? ConvetrtVariantTo<T>(JVariant v)
+		{
+			// 明確に変換不能な型
+			if (IsUnsupported(typeof(T)))
+			{
+				throw new VariantConvertException($"Conversion to type {typeof(T)} is not supported.");
+			}
+
+			if (!typeof(T).IsConcrete())
+			{
+				throw new VariantConvertException($"Conversion to non-concrete type {typeof(T)} is not supported.");
+			}
+
+			var trait = GetTrait(typeof(T));
+			if(trait == null)
+			{
+				throw new VariantConvertException($"Unable to convert type {typeof(T)}.");
+			}
+
+			return (T?)trait.FromVariant(v);
+		}
+
+		private ConvertTrait? GetTrait(Type type)
+		{
+			// TODO : 事前登録の対応
+			// TODO : キャッシュの対応
+
+			return CreateTrait(type);
+		}
+
+
+
+
+		// 型に対して、その型の変換をおこなう ConvertTrait を生成して返す。
+		private ConvertTrait? CreateTrait(Type type)
+		{
+			// IJVariantConvertible
+			if (typeof(IVariantConvertible).IsAssignableFrom(type))
+			{
+				var traitType = typeof(JVariantConvertibleTrait<>).MakeGenericType(type);
+				var ctor = traitType.GetConstructor(Array.Empty<Type>());
+				return ctor.Invoke(Array.Empty<object>()) as ConvertTrait;
+			}
+
+			// 配列
+			if (type.IsArray)
+			{
+				var elementType = type.GetElementType();
+				var traitType = typeof(ArrayTypeConvertTrait<>).MakeGenericType(elementType);
+				return Activator.CreateInstance(traitType) as ConvertTrait;
+			}
+
+			// Enum
+			if (type.IsEnum)
+			{
+				var traitType = typeof(EnumTypeConvertTrait<>).MakeGenericType(type);
+				return Activator.CreateInstance(traitType) as ConvertTrait;
+			}
+
+			// Nullable<>
+			if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>))
+			{
+				var valueType = type.GetGenericArguments()[0];
+				var traitType = typeof(NullableTypeConvertTrait<>).MakeGenericType(valueType);
+				return Activator.CreateInstance(traitType) as ConvertTrait;
+			}
+
+			// IDictionary<string,> を実装している？
+			var dict = type.GetInterfaces()
+					.Where(t =>
+						(t.IsGenericType) &&
+						(t.GetGenericTypeDefinition() == typeof(IDictionary<,>)) &&
+						(t.GetGenericArguments()[0] == typeof(string)))
+					.FirstOrDefault();
+			if (dict != null && type.IsDefaultConstructible()) 
+			{
+				var valueType = dict.GetGenericArguments()[1];
+				var traitType = typeof(DictionaryTypeConvertTrait<,>).MakeGenericType(type, valueType);
+				return Activator.CreateInstance(traitType) as ConvertTrait;
+			}
+
+			// ICollection<> を実装している？
+			var collection = type.GetInterfaces()
+					.Where(t =>
+						(t.IsGenericType) &&
+						(t.GetGenericTypeDefinition() == typeof(ICollection<>)))
+					.FirstOrDefault();
+			if (collection != null && type.IsDefaultConstructible())
+			{
+				var valueType = collection.GetGenericArguments()[0];
+				var traitType = typeof(CollectionTypeConvertTrait<,>).MakeGenericType(type, valueType);
+				return Activator.CreateInstance(traitType) as ConvertTrait;
+			}
+
+			// TODO : リフレクションで対応するパターン等を追加
+
+
+			return null;
+		}
 	}
 }

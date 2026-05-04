@@ -183,8 +183,7 @@ namespace Gatebox.Variant
 		/// この挙動が望ましくない場合は Set() を利用してください。</para>
 		/// </summary>
 		public void Add(string key, JValue v) { AddInternal(key, v); }
-		public void Add(string key, JVariant v) { AddInternal(key, v); }
-
+		
 		/// <summary>
 		/// KeyValuePair による追加。
 		/// <para>
@@ -227,7 +226,6 @@ namespace Gatebox.Variant
 		/// 個々の要素である JValue は可変の参照型ですが、
 		/// 設定時は基本的に参照を替えるのではなく、内容を書き換えようとします。</para>
 		/// </summary>
-		public void Set(StringView key, JVariant value) { EnsureItem(key).Assign(value); }
 		public void Set(StringView key, JValue value) { EnsureItem(key).Assign(value); }
 
 

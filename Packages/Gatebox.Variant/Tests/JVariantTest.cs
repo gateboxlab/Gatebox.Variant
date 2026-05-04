@@ -215,24 +215,163 @@ namespace Gatebox.Variant
 		[Test]
 		public void AsFixedType() 
 		{
-			var x = new JObject()
+			var values = new JObject()
 			{
 				["number"] = 123,
+				["float"] = 1.5,
 				["string"] = "abc",
 				["boolean"] = true,
 				["null"] = null!,
 				
 				["array"] = new JArray { 1, 2, 3 },
 				["object"] = new JObject { ["key"] = "value" },
-				["invalid_number"] = double.NaN,
+				["array_like_object"] = new JObject { ["0"] = "zero", ["1"] = "one" },
 			};
-			
-			Assert.That(x["number"].AsVariant().As<int>(), Is.EqualTo(123));
 
+			var number = values["number"].AsVariant();
+			var floating = values["float"].AsVariant();
+			var text = values["string"].AsVariant();
+			var boolean = values["boolean"].AsVariant();
+			var nil = values["null"].AsVariant();
+			var array = values["array"].AsVariant();
+			var obj = values["object"].AsVariant();
+			var arrayLikeObject = values["array_like_object"].AsVariant();
 
+			Assert.That(number.As<int>(), Is.EqualTo(123));
+			Assert.That(number.As<long>(), Is.EqualTo(123L));
+			Assert.That(number.As<short>(), Is.EqualTo((short)123));
+			Assert.That(number.As<sbyte>(), Is.EqualTo((sbyte)123));
+			Assert.That(number.As<uint>(), Is.EqualTo(123u));
+			Assert.That(number.As<ushort>(), Is.EqualTo((ushort)123));
+			Assert.That(number.As<byte>(), Is.EqualTo((byte)123));
+			Assert.That(number.As<ulong>(), Is.EqualTo(123ul));
+			Assert.That(number.As<float>(), Is.EqualTo(123.0f));
+			Assert.That(number.As<double>(), Is.EqualTo(123.0));
+			Assert.That(number.As<char>(), Is.EqualTo((char)123));
 
+			Assert.That(floating.As<float>(), Is.EqualTo(1.5f));
+			Assert.That(floating.As<double>(), Is.EqualTo(1.5));
+			Assert.That(floating.As<ulong>(), Is.EqualTo(1ul));
 
+			Assert.That(text.As<string>(), Is.EqualTo("abc"));
+			Assert.That(boolean.As<bool>(), Is.True);
 
+			Assert.That(nil.As<string>(), Is.Null);
+			Assert.That(nil.As<int>(), Is.EqualTo(0));
+			Assert.That(nil.As<bool>(), Is.False);
+			Assert.That(nil.As<JValue>(), Is.Null);
+			Assert.That(nil.As<JArray>().Count, Is.EqualTo(0));
+			Assert.That(nil.As<JObject>().Count, Is.EqualTo(0));
+
+			var asArray = array.As<JArray>();
+			var asObject = obj.As<JObject>();
+			var arrayAsObject = array.As<JObject>();
+			var objectAsArray = arrayLikeObject.As<JArray>();
+
+			Assert.That(asArray.Count, Is.EqualTo(3));
+			Assert.That(asArray[2].AsInt(), Is.EqualTo(3));
+			Assert.That(asObject["key"].AsString(), Is.EqualTo("value"));
+			Assert.That(arrayAsObject["0"].AsString(), Is.EqualTo("1"));
+			Assert.That(objectAsArray.Count, Is.EqualTo(2));
+			Assert.That(objectAsArray[1].AsString(), Is.EqualTo("one"));
+
+			Assert.That(number.As<JVariant>(), Is.EqualTo(number));
+			Assert.That(number.As<JValue>(), Is.SameAs(values["number"]));
 		}
+
+
+		private enum SampleEnum
+		{
+			Value1 = 0,
+			Value2 = 1,
+			Value3 = 2,
+		}
+
+		private enum SampleLongEnum : long
+		{
+			Large = 5000000000L,
+		}
+
+		private enum SampleULongEnum : ulong
+		{
+			Large = 5000000000UL,
+		}
+
+		private class SampleClass : IVariantConvertible
+		{
+			public int Value { get; }
+			public SampleClass(int value)
+			{
+				Value = value;
+			}
+			public SampleClass(JVariant variant)
+			{
+				Value = variant.AsInt();
+			}
+			public JVariant AsVariant()
+			{
+				return new JVariant(Value);
+			}
+		}
+
+		[Test]
+		public void AsBuildInType()
+		{
+			var x = new JVariant();
+			int? nullable_int = x.As<int?>();
+			Assert.That(nullable_int.HasValue, Is.False);
+
+			x = new JArray { 1, 2, 3 }.AsVariant();
+			var array = x.As<int[]>()!;
+			Assert.That(array.Length, Is.EqualTo(3));
+
+			var list = x.As<List<int>>()!;
+			Assert.That(list.Count, Is.EqualTo(3));
+
+			x = new JObject { ["key"] = "value" }.AsVariant();
+			var dict = x.As<Dictionary<string, string>>()!;
+			Assert.That(dict.Count, Is.EqualTo(1));
+			Assert.That(dict["key"], Is.EqualTo("value"));
+
+			x = new JVariant(2);
+			var enumValue = x.As<SampleEnum>();
+			Assert.That(enumValue, Is.EqualTo(SampleEnum.Value3));
+
+			x = new JVariant("Value1");
+			enumValue = x.As<SampleEnum>();
+			Assert.That(enumValue, Is.EqualTo(SampleEnum.Value1));
+
+			x = new JVariant(123);
+			var sample = x.As<SampleClass>()!;
+			Assert.That(sample.Value, Is.EqualTo(123));
+		}
+
+		[Test]
+		public void AsEnumSupportsLargeUnderlyingValues()
+		{
+			var x = new JVariant(5000000000L);
+
+			Assert.That(x.As<SampleLongEnum>(), Is.EqualTo(SampleLongEnum.Large));
+			Assert.That(x.As<SampleULongEnum>(), Is.EqualTo(SampleULongEnum.Large));
+		}
+
+		[Test]
+		public void AsEnumRejectsNonIntegralFloatingPointValues()
+		{
+			var x = new JVariant(1.5);
+
+			Assert.That(x.As<SampleEnum>(), Is.EqualTo(default(SampleEnum)));
+			Assert.That(() => x.As<SampleEnum>(throws: true), Throws.TypeOf<VariantConvertException>());
+		}
+
+		[Test]
+		public void AsReturnsDefaultOnVariantConvertExceptionUnlessThrowsIsTrue()
+		{
+			var x = new JVariant("abc");
+
+			Assert.That(x.As<SampleEnum>(), Is.EqualTo(default(SampleEnum)));
+			Assert.That(() => x.As<SampleEnum>(throws: true), Throws.TypeOf<VariantConvertException>());
+		}
+
 	}
 }
