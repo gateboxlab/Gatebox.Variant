@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
+#nullable enable 
+
 namespace Gatebox.Variant.Internal
 {
 	public class DynamicConvertTrait<T> : ConvertTrait<T>
@@ -222,13 +224,13 @@ namespace Gatebox.Variant.Internal
 		private static bool HasJsonIgnore(MemberInfo member)
 		{
 			return member.GetCustomAttributes(inherit: true)
-				.Any(attr => attr.GetType().FullName == "System.Text.Json.Serialization.JsonIgnoreAttribute");
+				.Any(attr => attr.GetType().Name == "JsonIgnoreAttribute");
 		}
 
 		private static string GetJsonName(MemberInfo member)
 		{
 			var attr = member.GetCustomAttributes(inherit: true)
-				.FirstOrDefault(attr => attr.GetType().FullName == "System.Text.Json.Serialization.JsonPropertyNameAttribute");
+				.FirstOrDefault(attr => attr.GetType().Name == "JsonPropertyNameAttribute");
 
 			if (attr == null)
 			{

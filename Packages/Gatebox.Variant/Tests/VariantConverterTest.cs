@@ -1,8 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Text;
-using System.Text.Json.Serialization;
-using Gatebox.Variant.Test;
 using NUnit.Framework;
 
 
@@ -10,6 +7,28 @@ namespace Gatebox.Variant
 {
 	namespace Test
 	{
+		// System.Text.Json.Serialization.JsonIgnoreAttribute なのですが、
+		// Unity 環境では NuGet 等で導入する必要があるためそれが存在するという想定を持つことができません。
+		// とにかく "JsonIgnoreAttribute" という名前の属性があればそれを無視するようにしています。
+		// System.Text.Json の JsonIgnoreAttribute はプロパティを持っているのですがそれは利用されません。
+		public class JsonIgnoreAttribute : Attribute
+		{
+		}
+
+		// JsonIgnoreAttribute と同様の理由で
+		// "JsonPropertyNameAttribute" という名前で "Name" というプロパティを持つ属性があればそれをプロパティの名前として利用するようにしています。
+		public class JsonPropertyNameAttribute : Attribute
+		{
+			public string Name { get; }
+			public JsonPropertyNameAttribute(string name)
+			{
+				Name = name;
+			}
+		}
+
+
+
+
 		public class DateTimeConvertTrait : ConvertTrait<DateTime>
 		{
 			public override DateTime ConvertVariant(JVariant variant)
