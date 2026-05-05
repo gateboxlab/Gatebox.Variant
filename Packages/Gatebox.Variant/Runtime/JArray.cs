@@ -436,9 +436,7 @@ namespace Gatebox.Variant
 			return new JVariant(this);
 		}
 
-
-
-		internal bool EquivalentTo(JArray other, int maxDepth, int depth)
+		public readonly bool EquivalentTo(JArray other, int maxDepth = JVariant.DefaultMaxDepth, int depth = 0)
 		{
 			if (Count != other.Count)
 			{
@@ -460,6 +458,12 @@ namespace Gatebox.Variant
 
 			return true;
 		}
+
+		public readonly JVariant Pick(StringView path)
+		{
+			return AsVariant().Pick(path);
+		}
+
 
 		/// <summary>
 		/// 反復子を返す。(非ジェネリック)

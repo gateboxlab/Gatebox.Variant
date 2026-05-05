@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using Gatebox.Variant.Internal;
 
 #nullable enable
@@ -26,6 +28,11 @@ namespace Gatebox.Variant
 		//==============================================================================
 		public const int DefaultMaxDepth = 64;
 
+
+		/// <summary>
+		/// Null を指す JVariant.
+		/// </summary>
+		public static readonly JVariant Null = new JVariant();
 
 		/// <summary>
 		/// Json 文字列をパースして JVariant を返す。
@@ -118,9 +125,77 @@ namespace Gatebox.Variant
 			{
 				context.Release();
 			}
-
 		}
 
+		/// <summary>
+		/// JSON Pointer のパース
+		/// <para>
+		/// 先頭は / で始まっていなければいけないものとします。
+		/// (JSON Pointer 的には空文字列が許される（自分自身）らしいですが、それはないものとします。)
+		/// 以後 / で区切り ~0 => ~, ~1 => / によるエスケープを処理してリストで返します。
+		/// </para>
+		/// </summary>
+		public static IList<StringView> ParseJsonPointer(StringView pointer)
+		{
+			if (pointer.IsBlank())
+			{
+				return new List<StringView>();
+			}
+
+			if (pointer[0] != '/')
+			{
+				throw new ArgumentException("JSON Pointer must start with '/'", nameof(pointer));
+			}
+
+			// "/" はルートを指すので空リストを返す
+			if (pointer.Length == 1)
+			{
+				return new List<StringView>();
+			}
+
+			// StringView として Split. 頭の / があるので最初はスキップ
+			var segments = pointer.Split('/').Skip(1).ToList();
+
+			// 個々のパートはひとつづつ見ていくしかない。
+			for (int i = 0; i < segments.Count; i++)
+			{
+				var segment = segments[i];
+
+				// チルダを探す、ない場合はそのままでよい。
+				int tilde = segment.Find('~');
+				if (tilde < 0)
+				{
+					continue;
+				}
+
+				// RFC 6901: "~1" => "/", "~0" => "~" (and reject invalid "~" usage)
+				var s = segment.ToString();
+				for (int j = 0; j < s.Length; j++)
+				{
+					if (s[j] != '~')
+					{
+						continue;
+					}
+
+					if (j + 1 >= s.Length)
+					{
+						throw new ArgumentException("Invalid escape sequence in JSON Pointer.", nameof(pointer));
+					}
+
+					char next = s[j + 1];
+					if (next != '0' && next != '1')
+					{
+						throw new ArgumentException("Invalid escape sequence in JSON Pointer.", nameof(pointer));
+					}
+
+					j++; // skip the escaped char
+				}
+
+				segments[i] = s.Replace("~1", "/").Replace("~0", "~");
+			}
+
+			return segments;
+		}
 
 		//==============================================================================
 		// operators
@@ -724,9 +799,61 @@ namespace Gatebox.Variant
 			return m_Value!.ToJson(policy);
 		}
 
-		public readonly JVariant Pick(string path)
+		/// <summary>
+		/// 子要素の参照。
+		/// <para>
+		/// 自分の配下の要素を文字列で指定して参照します。
+		/// <para>
+		/// 引数が '/' で開始する場合は 
+		/// JSON Pointer(RFC 6901) として解釈され、自分の配下の JSON Pointer で示される要素を返します。</para>
+		/// <para>
+		/// '/' 以外から開始する場合は . 区切りでそれぞれの個所ををキーとみなすような解釈となります。
+		/// (正確な仕様は <see cref="JsonTrail"/> を参照してください。</para>
+		/// <para>
+		///	<code>
+		///	value = JObject.Create();
+		/// value["1"] = JObject.Create();
+		///	value["1"]["1"] = JObject.Create();
+		///	value["1"]["1"]["1"] = "Item 1-1-1";
+		/// 
+		///	value.Pick( "1.1.1" );  // -> "Item 1-1-1"
+		/// </code>
+		/// たどることができるのはオブジェクトもしくは配列のみです。
+		/// 途中でそれ以外の要素になった場合は Null を示す JVariant を返すします。
+		/// どこまで辿れたかを結果から知ることはできません。</para>
+		/// </para>
+		/// </summary>
+		/// <param name="path">JSON Pointer もしくは . 区切りでオブジェクト内の位置を表した文字列。</param>
+		public readonly JVariant Pick(StringView path)
 		{
-			throw new NotImplementedException("JVariant.Pick() is not implemented yet.");
+			if (path.IsBlank())
+			{
+				return new JVariant();
+			}
+
+			IList<StringView> parts = (path[0] == '/')
+				? ParseJsonPointer(path)
+				: JsonTrail.ParseForRead(path);
+
+			JVariant v = this;
+
+			for (int i = 0; i < parts.Count; i++)
+			{
+				var key = parts[i].Trim();
+
+				if (v.IsObject())
+				{
+					v = v.AsObject().Get(key);
+					continue;
+				}
+				if (v.IsArray() && int.TryParse(key, out int index))
+				{
+					v = v.AsArray().Get(index);
+					continue;
+				}
+				return new JVariant();
+			}
+			return v;
 		}
 	}
 }

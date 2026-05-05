@@ -538,6 +538,13 @@ namespace Gatebox.Variant
 			return true;
 		}
 
+		public readonly JVariant Pick(StringView path)
+		{
+			return AsVariant().Pick(path);
+		}
+
+
+
 
 		[MemberNotNull(nameof(m_Body))]
 		private JObjectBody EnsureBody()

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using NUnit.Framework;
 
@@ -7,16 +7,16 @@ namespace Gatebox.Variant
 {
 	namespace Test
 	{
-		// System.Text.Json.Serialization.JsonIgnoreAttribute �Ȃ̂ł����A
-		// Unity ���ł� NuGet ���œ�������K�v�����邽�߂��ꂪ���݂���Ƃ����z��������Ƃ��ł��܂���B
-		// �Ƃɂ��� "JsonIgnoreAttribute" �Ƃ������O�̑���������΂���𖳎�����悤�ɂ��Ă��܂��B
-		// System.Text.Json �� JsonIgnoreAttribute �̓v���p�e�B�������Ă���̂ł�������͗��p����܂���B
+		// System.Text.Json.Serialization.JsonIgnoreAttribute なのですが、
+		// Unity 環境では NuGet 等で導入する必要があるためそれが存在するという想定を持つことができません。
+		// とにかく "JsonIgnoreAttribute" という名前の属性があればそれを無視するようにしています。
+		// System.Text.Json の JsonIgnoreAttribute はプロパティを持っているのですがそれは利用されません。
 		public class JsonIgnoreAttribute : Attribute
 		{
 		}
 
-		// JsonIgnoreAttribute �Ɠ��l�̗��R��
-		// "JsonPropertyNameAttribute" �Ƃ������O�� "Name" �Ƃ����v���p�e�B��������������΂�����v���p�e�B�̖��O�Ƃ��ė��p����悤�ɂ��Ă��܂��B
+		// JsonIgnoreAttribute と同様の理由で
+		// "JsonPropertyNameAttribute" という名前で "Name" というプロパティを持つ属性があればそれをプロパティの名前として利用するようにしています。
 		public class JsonPropertyNameAttribute : Attribute
 		{
 			public string Name { get; }

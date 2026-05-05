@@ -373,5 +373,49 @@ namespace Gatebox.Variant
 			Assert.That(() => x.As<SampleEnum>(throws: true), Throws.TypeOf<VariantConvertException>());
 		}
 
+		[Test]
+		public void PickReadsNestedObjectWithDotTrail()
+		{
+			var x = Parse("{\"user\":{\"profile\":{\"name\":\"Gatebox\"}}}");
+
+			Assert.That(x.Pick("user.profile.name").AsString(), Is.EqualTo("Gatebox"));
+		}
+
+		[Test]
+		public void PickReadsNestedArrayWithDotTrail()
+		{
+			var x = Parse("{\"items\":[{\"name\":\"first\"},{\"name\":\"second\"}]}");
+
+			Assert.That(x.Pick("items.0.name").AsString(), Is.EqualTo("first"));
+			Assert.That(x.Pick("items.1.name").AsString(), Is.EqualTo("second"));
+		}
+
+		[Test]
+		public void PickReadsBracketTrailKeysLiterally()
+		{
+			var x = Parse("{\"root\":{\"key.with.dot\":{\"inner]key\":\"value\"}}}");
+
+			Assert.That(x.Pick(@"root[key.with.dot][inner\]key]").AsString(), Is.EqualTo("value"));
+		}
+
+		[Test]
+		public void PickReadsJsonPointer()
+		{
+			var x = Parse("{\"a/b\":{\"c~d\":[10,20]}}");
+
+			Assert.That(x.Pick("/a~1b/c~0d/1").AsInt(), Is.EqualTo(20));
+		}
+
+		[Test]
+		public void PickReturnsNullVariantWhenPathCannotBeResolved()
+		{
+			var x = Parse("{\"items\":[1]}");
+
+			Assert.That(x.Pick("").IsNull(), Is.True);
+			Assert.That(x.Pick("items.name").IsNull(), Is.True);
+			Assert.That(x.Pick("items.10").IsNull(), Is.True);
+			Assert.That(x.Pick("items.one").IsNull(), Is.True);
+		}
+
 	}
 }
